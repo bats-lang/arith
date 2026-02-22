@@ -37,11 +37,11 @@
 
 (* ========== Bitwise ========== *)
 
-#pub fun bor_int_int(a: int, b: int): int = "mac#atspre_g0int_lor_int"
+#pub fun bor_int_int(a: int, b: int): int = "mac#atspre_lor_int_int"
 
 #pub fun bsl_int_int(a: int, n: int): int = "mac#atspre_g0int_asl_int"
 
-#pub fun band_int_int(a: int, b: int): int = "mac#atspre_g0int_land_int"
+#pub fun band_int_int(a: int, b: int): int = "mac#atspre_land_int_int"
 
 #pub fun bsr_int_int(a: int, n: int): int = "mac#atspre_g0int_asr_int"
 
@@ -67,7 +67,7 @@
 
 (* ========== g1 Dependent Bitwise ========== *)
 
-#pub fun band_g1 {a,b:nat}(a: int(a), b: int(b)): [r:nat | r <= b] int(r) = "mac#atspre_g0int_land_int"
+#pub fun band_g1 {a,b:nat}(a: int(a), b: int(b)): [r:nat | r <= b] int(r) = "mac#atspre_land_int_int"
 
 (* ========== Type Coercion ========== *)
 
