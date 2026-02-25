@@ -82,3 +82,18 @@
 #pub castfn checked_arr_size(x: int): [n:pos | n <= 1048576] int n
 
 #pub castfn checked_idx {n:pos} (x: int, len: int n): [i:nat | i < n] int i
+
+(* ========== Safe Fuel ========== *)
+(* Maximum safe recursion depth: 32768 stack frames.
+   At ~128 bytes per frame, this uses ~4MB of stack, safely under the
+   default 8MB stack limit. Any fuel value above this is capped.
+   Use this instead of checked_nat for recursion fuel parameters. *)
+
+stadef FUEL_MAX = 32768
+
+#pub fn safe_fuel(x: int): [n:nat] int n
+
+implement safe_fuel(x) =
+  if x <= 0 then checked_nat(0)
+  else if x > 32768 then checked_nat(32768)
+  else checked_nat(x)
