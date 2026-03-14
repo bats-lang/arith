@@ -79,6 +79,11 @@
 
 #pub castfn checked_byte(x: int): [v:nat | v < 256] int v
 
+#pub fn byte_of_char(c: char): [v:nat | v < 256] int v
+
+implement byte_of_char(c) =
+  checked_byte(uchar2int0(char2uchar0(c)))
+
 #pub castfn checked_arr_size(x: int): [n:pos | n <= 1048576] int n
 
 #pub castfn checked_idx {n:pos} (x: int, len: int n): [i:nat | i < n] int i
