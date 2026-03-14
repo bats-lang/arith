@@ -83,3 +83,5 @@
 
 #pub castfn checked_idx {n:pos} (x: int, len: int n): [i:nat | i < n] int i
 
+#pub castfn checked_text_size(x: int): [n:pos | n < 65536] int n
+
