@@ -71,8 +71,6 @@
 
 (* ========== Type Coercion ========== *)
 
-#pub castfn g0_of_g1 {n:int} (x: int(n)): int
-
 #pub castfn checked_pos(x: int): [n:pos] int n
 
 #pub castfn checked_nat(x: int): [n:nat] int n
