@@ -2,3 +2,4 @@ build/
 docs/
 dist/
 bats_modules/
+bats.lock
