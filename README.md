@@ -1,12 +1,12 @@
 # arith
 
-Integer arithmetic and type coercion primitives for the [Bats](https://github.com/bats-lang) programming language.
+Integer arithmetic primitives for the [Bats](https://github.com/bats-lang) programming language.
 
 ## Features
 
 - Basic arithmetic: `add_int_int`, `sub_int_int`, `mul_int_int`, `div_int_int`, `mod_int_int`
 - Comparison: `eq_int_int`, `neq_int_int`, `lt_int_int`, `gt_int_int`, `gte_int_int`, `lt1_int_int`
-- Type coercion: `checked_nat`, `checked_pos`, `checked_byte`, `checked_arr_size`, `checked_idx`
+- Bytes: `low_byte`, `byte_of_char` (proven in [0, 256), without a cast)
 - Conversion: `g0_of_g1`
 
 ## Usage
@@ -16,7 +16,6 @@ Integer arithmetic and type coercion primitives for the [Bats](https://github.co
 
 val sum = $AR.add_int_int(1, 2)
 val is_eq = $AR.eq_int_int(x, 0)
-val n = $AR.checked_nat(x)
 ```
 
 ## API
