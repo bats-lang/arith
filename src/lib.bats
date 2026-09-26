@@ -69,13 +69,7 @@
 
 #pub fun band_g1 {a,b:nat}(a: int(a), b: int(b)): [r:nat | r <= b] int(r) = "mac#atspre_land_int_int"
 
-(* ========== Type Coercion ========== *)
-
-#pub castfn checked_pos(x: int): [n:pos] int n
-
-#pub castfn checked_nat(x: int): [n:nat] int n
-
-#pub castfn checked_byte(x: int): [v:nat | v < 256] int v
+(* ========== Bytes ========== *)
 
 (* The low 8 bits of x as an int proven in [0, 256). Rebuilt from its
    bits: each term is a literal or 0, so the bound needs no cast. *)
@@ -92,10 +86,4 @@ end
 #pub fn byte_of_char(c: char): [v:nat | v < 256] int v
 
 implement byte_of_char(c) = low_byte(char2int0(c))
-
-#pub castfn checked_arr_size(x: int): [n:pos | n <= 1048576] int n
-
-#pub castfn checked_idx {n:pos} (x: int, len: int n): [i:nat | i < n] int i
-
-#pub castfn checked_text_size(x: int): [n:pos | n < 65536] int n
 
