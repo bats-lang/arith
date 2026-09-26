@@ -77,10 +77,21 @@
 
 #pub castfn checked_byte(x: int): [v:nat | v < 256] int v
 
+(* The low 8 bits of x as an int proven in [0, 256). Rebuilt from its
+   bits: each term is a literal or 0, so the bound needs no cast. *)
+#pub fn low_byte(x: int): [v:nat | v < 256] int v
+
+implement low_byte(x) = let
+  fn bit {w:nat | w < 256} (x: int, w: int w): [y:nat | y <= w] int y =
+    if band_int_int(x, w) = 0 then 0 else w
+in
+  bit(x, 128) + bit(x, 64) + bit(x, 32) + bit(x, 16)
+    + bit(x, 8) + bit(x, 4) + bit(x, 2) + bit(x, 1)
+end
+
 #pub fn byte_of_char(c: char): [v:nat | v < 256] int v
 
-implement byte_of_char(c) =
-  checked_byte(band_int_int(char2int0(c), 255))
+implement byte_of_char(c) = low_byte(char2int0(c))
 
 #pub castfn checked_arr_size(x: int): [n:pos | n <= 1048576] int n
 

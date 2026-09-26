@@ -1,0 +1,6 @@
+[package]
+name = "low_byte"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
