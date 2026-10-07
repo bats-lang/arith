@@ -28,9 +28,11 @@ fun spread {i,j:nat | i <= 262; j <= 262} .<262 - i, 262 - j>. (i: int i, j: int
   else spread(i, j + 1, (if agrees($AR.mul_g1(251, i), $AR.mul_g1(251, j)) then failed else $AR.add_int_int(failed, 1)))
 
 implement main0 () = let
-  val edges = (if agrees(65535, 65535) then 0 else 1) + (if agrees(65535, 0) then 0 else 1)
-  val more = (if agrees(32768, 32767) then 0 else 1) + (if agrees(43690, 21845) then 0 else 1)
-  val failed = $AR.add_int_int($AR.add_int_int(grid(0, 0, 0), spread(0, 0, 0)), $AR.add_int_int(edges, more))
+  val edges = $AR.add_int_int((if agrees(65535, 65535) then 0 else 1), (if agrees(65535, 0) then 0 else 1))
+  val more = $AR.add_int_int((if agrees(32768, 32767) then 0 else 1), (if agrees(43690, 21845) then 0 else 1))
+  val first = grid(0, 0, 0)
+  val second = spread(0, 0, 0)
+  val failed = $AR.add_int_int($AR.add_int_int(first, second), $AR.add_int_int(edges, more))
 in
   if $AR.eq_int_int(failed, 0) then println! ("xor: all cases pass")
   else let val () = println! ("FAIL xor: ", failed, " pairs differ") in exit_void(1) end
