@@ -80,10 +80,50 @@
   | {a,b,c:nat} XOR_10(2*a + 1, 2*b, 2*c + 1) of XOR(a, b, c)
   | {a,b,c:nat} XOR_11(2*a + 1, 2*b + 1, 2*c) of XOR(a, b, c)
 
-(* a xor b, with the proof that it is. The C operator is trusted to be
-   the one XOR describes (as band_g1 is trusted for its bound); that it
-   is, is tested for every pair of 16-bit numbers (tests/dynamic/xor) *)
-#pub fun xor_g1 {a,b:nat}(a: int(a), b: int(b)): [c:nat] (XOR(a, b, c) | int(c)) = "mac#atspre_lxor_int_int"
+(* AND(a, b, c) and OR(a, b, c): c is a and b, a or b, by the same bit
+   by bit specification *)
+#pub dataprop AND(int, int, int) =
+  | AND_nil(0, 0, 0)
+  | {a,b,c:nat | a + b > 0} AND_00(2*a, 2*b, 2*c) of AND(a, b, c)
+  | {a,b,c:nat} AND_01(2*a, 2*b + 1, 2*c) of AND(a, b, c)
+  | {a,b,c:nat} AND_10(2*a + 1, 2*b, 2*c) of AND(a, b, c)
+  | {a,b,c:nat} AND_11(2*a + 1, 2*b + 1, 2*c + 1) of AND(a, b, c)
+
+#pub dataprop OR(int, int, int) =
+  | OR_nil(0, 0, 0)
+  | {a,b,c:nat | a + b > 0} OR_00(2*a, 2*b, 2*c) of OR(a, b, c)
+  | {a,b,c:nat} OR_01(2*a, 2*b + 1, 2*c + 1) of OR(a, b, c)
+  | {a,b,c:nat} OR_10(2*a + 1, 2*b, 2*c + 1) of OR(a, b, c)
+  | {a,b,c:nat} OR_11(2*a + 1, 2*b + 1, 2*c + 1) of OR(a, b, c)
+
+(* a and b, a or b, with the proofs that they are. The C operators are
+   trusted to be the ones AND and OR describe (as band_g1 is trusted for
+   its bound); that they are is tested for every pair of 16-bit numbers
+   (tests/dynamic/xor, which checks the exclusive or made of them) *)
+#pub fun and_proved {a,b:nat}(a: int(a), b: int(b)): [c:nat] (AND(a, b, c) | int(c)) = "mac#atspre_land_int_int"
+
+#pub fun or_proved {a,b:nat}(a: int(a), b: int(b)): [c:nat] (OR(a, b, c) | int(c)) = "mac#atspre_lor_int_int"
+
+(* a xor b is a or b less a and b: the bits both have are counted twice
+   by the or, once too many *)
+prfun _xor_or_and {a,b,o,n:nat} .<a+b>. (po: OR(a, b, o), pn: AND(a, b, n)): [n <= o] XOR(a, b, o - n) =
+  case+ po of
+  | OR_nil() => (case+ pn of AND_nil() => XOR_nil())
+  | OR_00(po1) => (case+ pn of AND_00(pn1) => XOR_00(_xor_or_and(po1, pn1)))
+  | OR_01(po1) => (case+ pn of AND_01(pn1) => XOR_01(_xor_or_and(po1, pn1)))
+  | OR_10(po1) => (case+ pn of AND_10(pn1) => XOR_10(_xor_or_and(po1, pn1)))
+  | OR_11(po1) => (case+ pn of AND_11(pn1) => XOR_11(_xor_or_and(po1, pn1)))
+
+(* a xor b, with the proof that it is: the number is made of an and and an
+   or, whose proofs make the one XOR describes. (The wasm runtime has no
+   exclusive or of its own.) *)
+#pub fun xor_g1 {a,b:nat}(a: int(a), b: int(b)): [c:nat] (XOR(a, b, c) | int(c))
+
+implement xor_g1 (a, b) = let
+  val (po | o) = or_proved(a, b)
+  val (pn | n) = and_proved(a, b)
+  prval px = _xor_or_and(po, pn)
+in (px | sub_g1(o, n)) end
 
 (* a xor b is one number *)
 #pub prfun xor_functional {a,b,c1,c2:nat} (XOR(a, b, c1), XOR(a, b, c2)): [c1 == c2] void
