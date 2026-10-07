@@ -22,11 +22,10 @@ fun grid {a,b:nat | a <= 4096; b <= 4096} .<4096 - a, 4096 - b>. (a: int a, b: i
   else if b >= 4096 then grid(a + 1, 0, failed)
   else grid(a, b + 1, (if agrees(a, b) then failed else $AR.add_int_int(failed, 1)))
 
-fun spread {a,b:nat | a < 65536 + 251; b < 65536 + 251} .<65536 + 251 - a, 65536 + 251 - b>.
-  (a: int a, b: int b, failed: int): int =
-  if a >= 65536 then failed
-  else if b >= 65536 then spread(a + 251, 0, failed)
-  else spread(a, b + 251, (if agrees(a, b) then failed else $AR.add_int_int(failed, 1)))
+fun spread {i,j:nat | i <= 262; j <= 262} .<262 - i, 262 - j>. (i: int i, j: int j, failed: int): int =
+  if i >= 262 then failed
+  else if j >= 262 then spread(i + 1, 0, failed)
+  else spread(i, j + 1, (if agrees(251 * i, 251 * j) then failed else $AR.add_int_int(failed, 1)))
 
 implement main0 () = let
   val edges = (if agrees(65535, 65535) then 0 else 1) + (if agrees(65535, 0) then 0 else 1)
