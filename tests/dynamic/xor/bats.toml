@@ -1,0 +1,6 @@
+[package]
+name = "xor"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
