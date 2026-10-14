@@ -499,8 +499,17 @@ in (high, low | @(h3, l3)) end
 (* Each operation of a word gives one word *)
 #pub prfun rotr1_functional {h,l,h2,l2,h3,l3:nat} (ROTR1(h, l, h2, l2), ROTR1(h, l, h3, l3)): [h2 == h3; l2 == l3] void
 
+(* A number is its half and its lowest bit in one way only. With the
+   digits split off like this (the same lemma for both halves) the proof
+   is honest under both solvers: stated whole, the 32-bit one accepts
+   false variants of it (its context is contradictory) *)
+prfn _digit2 {a,s,a2,s2:nat | s < 2; s2 < 2; 2*a + s == 2*a2 + s2} (): [a == a2; s == s2] void = ()
+
 primplement rotr1_functional {h,l,h2,l2,h3,l3} (p, q) =
-  case+ p of ROTR1_mk() => (case+ q of ROTR1_mk() => ())
+  case+ p of ROTR1_mk{a,b}{s,t}() => (case+ q of ROTR1_mk{a2,b2}{s2,t2}() => let
+    prval () = _digit2{a,s,a2,s2}()
+    prval () = _digit2{b,t,b2,t2}()
+  in end)
 
 #pub prfun rotr_functional {n,h,l,h2,l2,h3,l3:nat} (ROTR(n, h, l, h2, l2), ROTR(n, h, l, h3, l3)): [h2 == h3; l2 == l3] void
 
@@ -517,7 +526,10 @@ primplement rotr_functional {n,h,l,h2,l2,h3,l3} (p, q) = _rotr_functional(p, q)
 #pub prfun shr1_functional {h,l,h2,l2,h3,l3:nat} (SHR1(h, l, h2, l2), SHR1(h, l, h3, l3)): [h2 == h3; l2 == l3] void
 
 primplement shr1_functional {h,l,h2,l2,h3,l3} (p, q) =
-  case+ p of SHR1_mk() => (case+ q of SHR1_mk() => ())
+  case+ p of SHR1_mk{a,b}{s,t}() => (case+ q of SHR1_mk{a2,b2}{s2,t2}() => let
+    prval () = _digit2{a,s,a2,s2}()
+    prval () = _digit2{b,t,b2,t2}()
+  in end)
 
 #pub prfun shr_functional {n,h,l,h2,l2,h3,l3:nat} (SHR(n, h, l, h2, l2), SHR(n, h, l, h3, l3)): [h2 == h3; l2 == l3] void
 
@@ -534,8 +546,22 @@ primplement shr_functional {n,h,l,h2,l2,h3,l3} (p, q) = _shr_functional(p, q)
 #pub prfun add32_functional {h1,l1,h2,l2,h3,l3,h4,l4:nat}
   (ADD32(h1, l1, h2, l2, h3, l3), ADD32(h1, l1, h2, l2, h4, l4)): [h3 == h4; l3 == l4] void
 
+(* The two halves are proved apart: the low halves and then the high
+   halves, each an equation of one sum in two ways. Stated as one lemma
+   (the carries c, d of both proofs and all eight halves in one context)
+   the infinite-precision solver does not answer; the two small ones it
+   does at once. *)
+prfn _add32_low {l1,l2,l3,l4,c,c2:nat | l1 < 65536; l2 < 65536; l3 < 65536; l4 < 65536; c < 2; c2 < 2;
+  l1 + l2 == l3 + 65536*c; l1 + l2 == l4 + 65536*c2} (): [c == c2; l3 == l4] void = ()
+
+prfn _add32_high {h1,h2,h3,h4,c,d,d2:nat | h1 < 65536; h2 < 65536; h3 < 65536; h4 < 65536; c < 2; d < 2; d2 < 2;
+  h1 + h2 + c == h3 + 65536*d; h1 + h2 + c == h4 + 65536*d2} (): [h3 == h4] void = ()
+
 primplement add32_functional {h1,l1,h2,l2,h3,l3,h4,l4} (p, q) =
-  case+ p of ADD32_mk() => (case+ q of ADD32_mk() => ())
+  case+ p of ADD32_mk{..}{c,d}() => (case+ q of ADD32_mk{..}{c2,d2}() => let
+    prval () = _add32_low{l1,l2,l3,l4,c,c2}()
+    prval () = _add32_high{h1,h2,h3,h4,c,d,d2}()
+  in end)
 
 (* ===== Fast rotations (sha256#29, stage E) =====
 
