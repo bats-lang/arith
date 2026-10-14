@@ -1,0 +1,1 @@
+rotr-add-wrong-sum.bats: 330(line=6, offs=3) -- 348(line=6, offs=21): error(3): unsolved constraint: C3NSTRprop(C3TKmain(); S2Eeqeq(S2Eapp(S2Ecst(add_int_int); S2Eintinf(3), S2Eintinf(4)); S2Eintinf(8)))

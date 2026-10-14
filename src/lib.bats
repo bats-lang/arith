@@ -536,3 +536,189 @@ primplement shr_functional {n,h,l,h2,l2,h3,l3} (p, q) = _shr_functional(p, q)
 
 primplement add32_functional {h1,l1,h2,l2,h3,l3,h4,l4} (p, q) =
   case+ p of ADD32_mk() => (case+ q of ADD32_mk() => ())
+
+(* ===== Fast rotations (sha256#29, stage E) =====
+
+   ROTR is n steps of one bit, which is the specification and too slow to
+   compute with: a digest rotates about a million bits a block. Here a
+   rotation by n < 32 is at most five constant-time steps on the halves
+   (by 16, 8, 4, 2 and 1, one for each set bit of n), each proved against
+   that same relation, and the steps compose: rotr_add says a rotation by
+   a and then by b is one by a + b (by induction on a), so the proof of
+   the rotation by n is the steps' proofs added.
+
+   A step by k bits is stated on digits, never on divisions: with
+   p = 2 to the k and q = 2 to the 16 - k, the halves are h = p*a + r
+   and l = p*b + t (r and t are the k low bits), and h:l rotated right by
+   k is (a + q*t):(b + q*r). The step by 2k is proved from the step by k
+   twice (two digits of k bits make one of 2k, and q = p * q of 2k), the
+   step by 1 from ROTR1, and the step by 16 from two of 8 on bytes (it
+   swaps the halves). Every proof is an equation of linear terms whose
+   coefficients are at most 2 to the 16, so the 32-bit solver is never
+   near its limit; each is also tried by a false variant in
+   tests/static/reject, which a solver with a contradictory context would
+   accept. *)
+
+(* a rotation by a and then by b is one by a + b *)
+#pub prfun rotr_add {a,b,h,l,h1,l1,h2,l2:nat} (ROTR(a, h, l, h1, l1), ROTR(b, h1, l1, h2, l2)): ROTR(a + b, h, l, h2, l2)
+
+prfun _rotr_add {a,b,h,l,h1,l1,h2,l2:nat} .<a>. (p: ROTR(a, h, l, h1, l1), q: ROTR(b, h1, l1, h2, l2)): ROTR(a + b, h, l, h2, l2) =
+  case+ p of
+  | ROTR_zero() => q
+  | ROTR_succ(once, rest) => ROTR_succ(once, _rotr_add(rest, q))
+
+primplement rotr_add {a,b,h,l,h1,l1,h2,l2} (p, q) = _rotr_add(p, q)
+
+(* the same for shifts: a shift by a and then by b is one by a + b *)
+#pub prfun shr_add {a,b,h,l,h1,l1,h2,l2:nat} (SHR(a, h, l, h1, l1), SHR(b, h1, l1, h2, l2)): SHR(a + b, h, l, h2, l2)
+
+prfun _shr_add {a,b,h,l,h1,l1,h2,l2:nat} .<a>. (p: SHR(a, h, l, h1, l1), q: SHR(b, h1, l1, h2, l2)): SHR(a + b, h, l, h2, l2) =
+  case+ p of
+  | SHR_zero() => q
+  | SHR_succ(once, rest) => SHR_succ(once, _shr_add(rest, q))
+
+primplement shr_add {a,b,h,l,h1,l1,h2,l2} (p, q) = _shr_add(p, q)
+
+(* the same rotation under equal halves *)
+prfn rotr_cast {n,h,l,h2,l2,c,d,c2,d2:nat | h == c; l == d; h2 == c2; l2 == d2}
+  (p: ROTR(n, h, l, h2, l2)): ROTR(n, c, d, c2, d2) = p
+
+(* by 1 bit: h = 2a + r, l = 2b + t *)
+#pub prfun rotr_digits_1 {a,b,r,t:nat | a < 32768; b < 32768; r < 2; t < 2} ()
+  : ROTR(1, 2*a + r, 2*b + t, a + 32768*t, b + 32768*r)
+
+primplement rotr_digits_1 {a,b,r,t} () = ROTR_succ(ROTR1_mk{a,b}{r,t}(), ROTR_zero())
+
+(* by 2 bits: h = 4*A + R, l = 4*B + T, two steps of 1 *)
+#pub prfun rotr_digits_2 {a,b,r,t:nat | a < 16384; b < 16384; r < 4; t < 4} ()
+  : ROTR(2, 4*a + r, 4*b + t, a + 16384*t, b + 16384*r)
+
+primplement rotr_digits_2 {a,b,r,t} () = let
+  prval first = rotr_digits_1{2*a + r/2, 2*b + t/2, r - 2*(r/2), t - 2*(t/2)}()
+  prval second = rotr_digits_1{a + 16384*(t - 2*(t/2)), b + 16384*(r - 2*(r/2)), r/2, t/2}()
+in rotr_cast(rotr_add(first, second)) end
+
+(* by 4 bits: h = 16*A + R, l = 16*B + T, two steps of 2 *)
+#pub prfun rotr_digits_4 {a,b,r,t:nat | a < 4096; b < 4096; r < 16; t < 16} ()
+  : ROTR(4, 16*a + r, 16*b + t, a + 4096*t, b + 4096*r)
+
+primplement rotr_digits_4 {a,b,r,t} () = let
+  prval first = rotr_digits_2{4*a + r/4, 4*b + t/4, r - 4*(r/4), t - 4*(t/4)}()
+  prval second = rotr_digits_2{a + 4096*(t - 4*(t/4)), b + 4096*(r - 4*(r/4)), r/4, t/4}()
+in rotr_cast(rotr_add(first, second)) end
+
+(* by 8 bits: h = 256*A + R, l = 256*B + T, two steps of 4 *)
+#pub prfun rotr_digits_8 {a,b,r,t:nat | a < 256; b < 256; r < 256; t < 256} ()
+  : ROTR(8, 256*a + r, 256*b + t, a + 256*t, b + 256*r)
+
+primplement rotr_digits_8 {a,b,r,t} () = let
+  prval first = rotr_digits_4{16*a + r/16, 16*b + t/16, r - 16*(r/16), t - 16*(t/16)}()
+  prval second = rotr_digits_4{a + 256*(t - 16*(t/16)), b + 256*(r - 16*(r/16)), r/16, t/16}()
+in rotr_cast(rotr_add(first, second)) end
+
+(* by 16 bits: the halves swap. h = 256*hh + hl, l = 256*lh + ll *)
+#pub prfun rotr_by_16 {h,l:nat | h < 65536; l < 65536} ()
+  : ROTR(16, h, l, l, h)
+
+primplement rotr_by_16 {h,l} () = let
+  prval first = rotr_digits_8{h/256, l/256, h - 256*(h/256), l - 256*(l/256)}()
+  prval second = rotr_digits_8{l - 256*(l/256), h - 256*(h/256), h/256, l/256}()
+in rotr_cast(rotr_add(first, second)) end
+
+(* A step by k bits on the halves, with the proof that it is one: the
+   digits a, r of h and b, t of l by division by p = 2 to the k, and the
+   result (a + q*t):(b + q*r), q = 2 to the 16 - k *)
+
+#pub fun rotr_step_1 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(1, h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr_step_1 {h,l} (h, l) = let
+  val a = h / 2
+  val b = l / 2
+  val r = sub_g1(h, mul_g1(2, a))
+  val t = sub_g1(l, mul_g1(2, b))
+  prval pf = rotr_digits_1{h/2, l/2, h - 2*(h/2), l - 2*(l/2)}()
+in (rotr_cast(pf) | @(add_g1(a, mul_g1(32768, t)), add_g1(b, mul_g1(32768, r)))) end
+
+#pub fun rotr_step_2 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(2, h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr_step_2 {h,l} (h, l) = let
+  val a = h / 4
+  val b = l / 4
+  val r = sub_g1(h, mul_g1(4, a))
+  val t = sub_g1(l, mul_g1(4, b))
+  prval pf = rotr_digits_2{h/4, l/4, h - 4*(h/4), l - 4*(l/4)}()
+in (rotr_cast(pf) | @(add_g1(a, mul_g1(16384, t)), add_g1(b, mul_g1(16384, r)))) end
+
+#pub fun rotr_step_4 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(4, h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr_step_4 {h,l} (h, l) = let
+  val a = h / 16
+  val b = l / 16
+  val r = sub_g1(h, mul_g1(16, a))
+  val t = sub_g1(l, mul_g1(16, b))
+  prval pf = rotr_digits_4{h/16, l/16, h - 16*(h/16), l - 16*(l/16)}()
+in (rotr_cast(pf) | @(add_g1(a, mul_g1(4096, t)), add_g1(b, mul_g1(4096, r)))) end
+
+#pub fun rotr_step_8 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(8, h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr_step_8 {h,l} (h, l) = let
+  val a = h / 256
+  val b = l / 256
+  val r = sub_g1(h, mul_g1(256, a))
+  val t = sub_g1(l, mul_g1(256, b))
+  prval pf = rotr_digits_8{h/256, l/256, h - 256*(h/256), l - 256*(l/256)}()
+in (rotr_cast(pf) | @(add_g1(a, mul_g1(256, t)), add_g1(b, mul_g1(256, r)))) end
+
+#pub fun rotr_step_16 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : (ROTR(16, h, l, l, h) | @(int l, int h))
+
+implement rotr_step_16 {h,l} (h, l) = (rotr_by_16{h,l}() | @(l, h))
+
+(* The word h:l rotated right by n < 32 bits, with the proof that it is,
+   in at most five constant-time steps: the stage for k bits takes the
+   step by k when n has that bit set and leaves the rest to the stages
+   below it (rotr_add puts the proofs together) *)
+fn _rotr_stage_1 {n,h,l:nat | n < 2; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 1) then rotr_step_1(h, l) else (ROTR_zero() | @(h, l))
+
+fn _rotr_stage_2 {n,h,l:nat | n < 4; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 2) then let
+    val (first | @(h1, l1)) = rotr_step_2(h, l)
+    val (rest | @(h2, l2)) = _rotr_stage_1(sub_g1(n, 2), h1, l1)
+  in (rotr_add(first, rest) | @(h2, l2)) end
+  else _rotr_stage_1(n, h, l)
+
+fn _rotr_stage_4 {n,h,l:nat | n < 8; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 4) then let
+    val (first | @(h1, l1)) = rotr_step_4(h, l)
+    val (rest | @(h2, l2)) = _rotr_stage_2(sub_g1(n, 4), h1, l1)
+  in (rotr_add(first, rest) | @(h2, l2)) end
+  else _rotr_stage_2(n, h, l)
+
+fn _rotr_stage_8 {n,h,l:nat | n < 16; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 8) then let
+    val (first | @(h1, l1)) = rotr_step_8(h, l)
+    val (rest | @(h2, l2)) = _rotr_stage_4(sub_g1(n, 8), h1, l1)
+  in (rotr_add(first, rest) | @(h2, l2)) end
+  else _rotr_stage_4(n, h, l)
+
+fn _rotr_stage_16 {n,h,l:nat | n < 32; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 16) then let
+    val (first | @(h1, l1)) = rotr_step_16(h, l)
+    val (rest | @(h2, l2)) = _rotr_stage_8(sub_g1(n, 16), h1, l1)
+  in (rotr_add(first, rest) | @(h2, l2)) end
+  else _rotr_stage_8(n, h, l)
+
+#pub fun rotr_fast {n,h,l:nat | n < 32; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr_fast {n,h,l} (n, h, l) = _rotr_stage_16(n, h, l)

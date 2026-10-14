@@ -1,0 +1,6 @@
+[package]
+name = "rotr-fast-another-amount"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

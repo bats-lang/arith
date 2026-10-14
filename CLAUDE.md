@@ -41,3 +41,22 @@ adds a faster step with a proof against the same relations. What is
 trusted is only the C operators under `and_proved`, `or_proved` and
 `xor_g1`; `tests/dynamic/word` compares every operation with the
 standard's formulas on C's unsigned int.
+
+## Fast rotations (bats-lang/sha256#29, stage E)
+
+`rotr` is the specification, n steps of one bit, and too slow to compute
+with. `rotr_fast` rotates by n < 32 in at most five constant-time steps on
+the halves (`rotr_step_16`, `_8`, `_4`, `_2`, `_1`, one for each set bit of
+n), each returning the proof `ROTR(k, ...)` of the same relation. The
+proofs: `rotr_add` (a rotation by a then by b is one by a + b, by
+induction on a; `shr_add` the same for `SHR`), `rotr_digits_1` from
+`ROTR1`, `rotr_digits_2/4/8` each from two steps of half the size (stated
+on digits: h = p*a + r, l = p*b + t, the result (a + q*t):(b + q*r), p = 2
+to the k, q = 2 to the 16 - k), and `rotr_by_16` from two of 8 (the halves
+swap). Statements are on digits and the instantiations divide by a
+constant of at most 16, because the nested closed forms (halves as
+`h/256 + 256*(l mod 256)`, two deep) made the 32-bit solver's context
+contradictory at 16 bits, which accepted a false claim: each lemma is
+tried with a false variant for that reason (this is how it was found).
+`tests/dynamic/fast_rot` compares every amount, step and the slow `rotr`
+with C's unsigned int.

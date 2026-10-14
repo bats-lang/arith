@@ -1,0 +1,6 @@
+[package]
+name = "fast_rot"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

@@ -1,0 +1,1 @@
+rotr-fast-another-amount.bats: 537(line=10, offs=23) -- 539(line=10, offs=25): error(3): unsolved constraint: C3NSTRprop(C3TKmain(); S2Eeqeq(S2Evar(n(
