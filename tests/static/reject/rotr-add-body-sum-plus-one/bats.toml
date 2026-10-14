@@ -1,0 +1,6 @@
+[package]
+name = "rotr-add-body-sum-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

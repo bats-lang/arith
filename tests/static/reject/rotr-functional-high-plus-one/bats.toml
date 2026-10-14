@@ -1,0 +1,6 @@
+[package]
+name = "rotr-functional-high-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

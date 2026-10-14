@@ -1,0 +1,6 @@
+[package]
+name = "rotr-by-16-body-not-swapped"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

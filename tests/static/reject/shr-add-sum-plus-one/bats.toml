@@ -1,0 +1,6 @@
+[package]
+name = "shr-add-sum-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
