@@ -1,1 +1,3 @@
-rotr-16-not-swapped.bats: 278(line=5, offs=76) -- 299(line=5, offs=97): error(3): unsolved constraint: C3NSTRprop(C3TKmain(); S2Eeqeq(S2Evar(l(
+function claim
+line 5
+unsolved constraint: C3NSTRprop(C3TKmain(); S2Eeqeq(S2Evar(l(_)); S2Evar(h(_))))

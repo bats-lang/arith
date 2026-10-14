@@ -1,1 +1,3 @@
-430(line=7, offs=55) -- 432(line=7, offs=57): error(3): unsolved constraint: C3NSTRprop(C3TKmain(); S2Eapp(S2Ecst(==); S2Evar(
+function claim
+line 7
+unsolved constraint: C3NSTRprop(C3TKmain(); S2Eapp(S2Ecst(==); S2Evar(h2(_)), S2Eapp(S2Ecst(+); S2Evar(h3(_)), S2Eintinf(1))))

@@ -62,3 +62,10 @@ jobs:
           git -C ~/repository fetch -q --depth 1 https://github.com/bats-lang/repository-prototype.git "$(tr -d '[:space:]' < .github/repository-version)"
           git -C ~/repository checkout -q FETCH_HEAD
           tests/dynamic/run.sh ~/repository
+
+      - name: Static tests
+        run: |
+          export PATH=~/bats-bin:$PATH
+          # Each reject fixture must fail exactly as its expect says (quire#585);
+          # ~/repository is the checkout the Dynamic tests step made
+          tests/static/run.sh ~/repository
