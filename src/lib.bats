@@ -156,6 +156,127 @@ prfun _xor_bound {k,p,a,b,c:nat | a < p; b < p} .<k>. (w: POW2(k, p), x: XOR(a, 
 
 primplement xor_bound {k,p,a,b,c} (w, x) = _xor_bound(w, x)
 
+(* ========== The algebra of exclusive or ========== *)
+
+(* What a table-driven checksum needs of XOR: it is commutative and
+   associative, 0 is its identity, a number is its own inverse, and
+   halving (dropping the low bit) goes through it. Each is proved from
+   the bit by bit specification, so none is trusted. *)
+
+(* 2a xor 2b is 2c where a xor b is c; XOR_00 alone needs a + b > 0, so
+   this form is the one to build with *)
+#pub prfun xor_double {a,b,c:nat} (XOR(a, b, c)): XOR(2*a, 2*b, 2*c)
+
+primplement xor_double {a,b,c} (p) =
+  case+ p of
+  | XOR_nil() => XOR_nil()
+  | XOR_00(p1) => XOR_00(xor_double(p1))
+  | XOR_01(p1) => XOR_00(p)
+  | XOR_10(p1) => XOR_00(p)
+  | XOR_11(p1) => XOR_00(p)
+
+(* a xor 0 and 0 xor a are a *)
+#pub prfun xor_zero_right {a:nat} (): XOR(a, 0, a)
+
+primplement xor_zero_right {a} () = let
+  prfun go {a:nat} .<a>. (): XOR(a, 0, a) =
+    sif a == 0 then XOR_nil()
+    else sif a == 2*(a/2) then xor_double(go{a/2}())
+    else XOR_10(go{a/2}())
+in go{a}() end
+
+#pub prfun xor_zero_left {a:nat} (): XOR(0, a, a)
+
+primplement xor_zero_left {a} () = let
+  prfun go {a:nat} .<a>. (): XOR(0, a, a) =
+    sif a == 0 then XOR_nil()
+    else sif a == 2*(a/2) then xor_double(go{a/2}())
+    else XOR_01(go{a/2}())
+in go{a}() end
+
+(* a xor b is b xor a *)
+#pub prfun xor_comm {a,b,c:nat} (XOR(a, b, c)): XOR(b, a, c)
+
+primplement xor_comm {a,b,c} (p) =
+  case+ p of
+  | XOR_nil() => XOR_nil()
+  | XOR_00(p1) => XOR_00(xor_comm(p1))
+  | XOR_01(p1) => XOR_10(xor_comm(p1))
+  | XOR_10(p1) => XOR_01(xor_comm(p1))
+  | XOR_11(p1) => XOR_11(xor_comm(p1))
+
+(* a xor a is 0 *)
+#pub prfun xor_self {a:nat} (): XOR(a, a, 0)
+
+primplement xor_self {a} () = let
+  prfun go {a:nat} .<a>. (): XOR(a, a, 0) =
+    sif a == 0 then XOR_nil()
+    else sif a == 2*(a/2) then xor_double(go{a/2}())
+    else XOR_11(go{a/2}())
+in go{a}() end
+
+(* Halving goes through xor: (a xor b) / 2 is a / 2 xor b / 2. (The low
+   bit is in the constructors: matching on a XOR says it) *)
+#pub prfun xor_half {a,b,c:nat} (XOR(a, b, c)): XOR(a/2, b/2, c/2)
+
+primplement xor_half {a,b,c} (p) =
+  case+ p of
+  | XOR_nil() => XOR_nil()
+  | XOR_00(p1) => p1
+  | XOR_01(p1) => p1
+  | XOR_10(p1) => p1
+  | XOR_11(p1) => p1
+
+(* a xor b is 0 only for a equal to b *)
+#pub prfun xor_zero_equal {a,b:nat} (XOR(a, b, 0)): [a == b] void
+
+primplement xor_zero_equal {a,b} (p) = let
+  prfun go {a,b:nat} .<a+b>. (p: XOR(a, b, 0)): [a == b] void =
+    case+ p of
+    | XOR_nil() => ()
+    | XOR_00(p1) => go(p1)
+    | XOR_11(p1) => go(p1)
+in go(p) end
+
+(* (a xor b) xor c is a xor (b xor c). The cases where the second
+   argument of one of the xors is 0 come first, as the XOR_00 of a
+   zero has no recursion to carry the proof *)
+#pub prfun xor_assoc {a,b,c,ab,bc,abc:nat}
+  (XOR(a, b, ab), XOR(ab, c, abc), XOR(b, c, bc)): XOR(a, bc, abc)
+
+prfn _assoc_rnil {a,ab,abc:nat} (p: XOR(a, 0, ab), q: XOR(ab, 0, abc)): XOR(a, 0, abc) = let
+  prval () = xor_functional(p, xor_zero_right{a}())
+  prval () = xor_functional(q, xor_zero_right{ab}())
+in xor_zero_right{a}() end
+
+prfn _assoc_qnil {a,b,bc:nat} (p: XOR(a, b, 0), r: XOR(b, 0, bc)): XOR(a, bc, 0) = let
+  prval () = xor_zero_equal(p)
+  prval () = xor_functional(r, xor_zero_right{b}())
+in xor_self{a}() end
+
+prfun _xor_assoc {a,b,c,ab,bc,abc:nat} .<a+b+c>.
+  (p: XOR(a, b, ab), q: XOR(ab, c, abc), r: XOR(b, c, bc)): XOR(a, bc, abc) =
+  case+ p of
+  | XOR_nil() => let
+      prval () = xor_functional(r, q)
+    in xor_zero_left() end
+  | XOR_00(p1) => (case+ r of
+    | XOR_nil() => _assoc_rnil(p, q)
+    | XOR_00(r1) => (case+ q of XOR_nil() => _assoc_qnil(p, r) | XOR_00(q1) => xor_double(_xor_assoc(p1, q1, r1)))
+    | XOR_01(r1) => (case+ q of XOR_01(q1) => XOR_01(_xor_assoc(p1, q1, r1))))
+  | XOR_01(p1) => (case+ r of
+    | XOR_10(r1) => (case+ q of XOR_10(q1) => XOR_01(_xor_assoc(p1, q1, r1)))
+    | XOR_11(r1) => (case+ q of XOR_11(q1) => xor_double(_xor_assoc(p1, q1, r1))))
+  | XOR_10(p1) => (case+ r of
+    | XOR_nil() => _assoc_rnil(p, q)
+    | XOR_00(r1) => (case+ q of XOR_10(q1) => XOR_10(_xor_assoc(p1, q1, r1)))
+    | XOR_01(r1) => (case+ q of XOR_11(q1) => XOR_11(_xor_assoc(p1, q1, r1))))
+  | XOR_11(p1) => (case+ r of
+    | XOR_10(r1) => (case+ q of XOR_nil() => _assoc_qnil(p, r) | XOR_00(q1) => XOR_11(_xor_assoc(p1, q1, r1)))
+    | XOR_11(r1) => (case+ q of XOR_01(q1) => XOR_10(_xor_assoc(p1, q1, r1))))
+
+primplement xor_assoc (p, q, r) = _xor_assoc(p, q, r)
+
 (* ========== Bytes ========== *)
 
 (* The low 8 bits of x as an int proven in [0, 256). Rebuilt from its
