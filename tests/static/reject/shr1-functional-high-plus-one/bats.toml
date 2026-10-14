@@ -1,0 +1,6 @@
+[package]
+name = "shr1-functional-high-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

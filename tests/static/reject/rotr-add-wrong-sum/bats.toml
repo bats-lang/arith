@@ -1,0 +1,6 @@
+[package]
+name = "rotr-add-wrong-sum"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

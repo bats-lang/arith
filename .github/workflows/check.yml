@@ -53,12 +53,18 @@ jobs:
           export PATH=~/bats-bin:$PATH
           bats check
 
-      - name: Dynamic tests
+      - name: Static tests
         run: |
           export PATH=~/bats-bin:$PATH
+          # Each reject fixture must fail exactly as its expect says (quire#585)
           # The package repository at the commit .github/repository-version pins
           # (bats-lang/repository-prototype#269): what the lock and the test packages resolve against
           git init -q ~/repository
           git -C ~/repository fetch -q --depth 1 https://github.com/bats-lang/repository-prototype.git "$(tr -d '[:space:]' < .github/repository-version)"
           git -C ~/repository checkout -q FETCH_HEAD
+          tests/static/run.sh ~/repository
+
+      - name: Dynamic tests
+        run: |
+          export PATH=~/bats-bin:$PATH
           tests/dynamic/run.sh ~/repository

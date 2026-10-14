@@ -1,0 +1,6 @@
+[package]
+name = "rotr-by-another-amount"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

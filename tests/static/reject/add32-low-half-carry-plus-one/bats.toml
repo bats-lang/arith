@@ -1,0 +1,6 @@
+[package]
+name = "add32-low-half-carry-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
