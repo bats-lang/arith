@@ -295,3 +295,244 @@ end
 
 implement byte_of_char(c) = low_byte(char2int0(c))
 
+
+(* ========== 32-bit words, as two 16-bit halves ========== *)
+
+(* A word is its high and low halves, each a number under 65536. The
+   halves, not the number, are what the specification is indexed by: the
+   solver is 32-bit, a constant or a coefficient of 2 to the 30 or more
+   in a hypothesis makes its context contradictory, so no proof here
+   names 2 to the 32. The word is h * 65536 + l.
+
+   The specifications are the standard's own definitions, one bit at a
+   time: rotating right by n bits is n rotations by one bit, shifting
+   right by n bits is n shifts by one bit, and an addition is modulo
+   2 to the 32 by its carries (FIPS 180-4, sections 2.2.2, 3.2 and 4.1) *)
+
+(* ROTR1(h, l, h2, l2): the word h:l rotated right by one bit is h2:l2.
+   Each half is its upper bits and its lowest bit (h = 2a + s, l = 2b + t):
+   the lowest bit of the word, t, becomes the highest, and the lowest bit
+   of the high half, s, becomes the highest of the low half. *)
+#pub dataprop ROTR1(int, int, int, int) =
+  | {a,b:nat | a < 32768; b < 32768}{s,t:nat | s < 2; t < 2}
+    ROTR1_mk(2*a + s, 2*b + t, a + 32768*t, b + 32768*s)
+
+(* ROTR(n, h, l, h2, l2): h:l rotated right by n bits is h2:l2 *)
+#pub dataprop ROTR(int, int, int, int, int) =
+  | {h,l:nat} ROTR_zero(0, h, l, h, l)
+  | {n:nat}{h,l,h1,l1,h2,l2:nat}
+    ROTR_succ(n + 1, h, l, h2, l2) of (ROTR1(h, l, h1, l1), ROTR(n, h1, l1, h2, l2))
+
+(* SHR1(h, l, h2, l2) and SHR(n, h, l, h2, l2): shifted right by one bit
+   and by n bits; the bits shifted out are lost and zeros come in at the top *)
+#pub dataprop SHR1(int, int, int, int) =
+  | {a,b:nat | a < 32768; b < 32768}{s,t:nat | s < 2; t < 2}
+    SHR1_mk(2*a + s, 2*b + t, a, b + 32768*s)
+
+#pub dataprop SHR(int, int, int, int, int) =
+  | {h,l:nat} SHR_zero(0, h, l, h, l)
+  | {n:nat}{h,l,h1,l1,h2,l2:nat}
+    SHR_succ(n + 1, h, l, h2, l2) of (SHR1(h, l, h1, l1), SHR(n, h1, l1, h2, l2))
+
+(* ADD32(h1, l1, h2, l2, h3, l3): h1:l1 plus h2:l2 modulo 2 to the 32 is
+   h3:l3. The low halves add to l3 and a carry c into the high halves,
+   which add with it to h3 and a carry d that is dropped: the modulus *)
+#pub dataprop ADD32(int, int, int, int, int, int) =
+  | {h1,l1,h2,l2,h3,l3:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536; h3 < 65536; l3 < 65536}
+    {c,d:nat | c < 2; d < 2; l1 + l2 == l3 + 65536*c; h1 + h2 + c == h3 + 65536*d}
+    ADD32_mk(h1, l1, h2, l2, h3, l3)
+
+(* NOT32(h, l, h2, l2): h2:l2 is h:l with every bit flipped *)
+#pub dataprop NOT32(int, int, int, int) =
+  | {h,l:nat | h < 65536; l < 65536} NOT32_mk(h, l, 65535 - h, 65535 - l)
+
+(* x as 2a + s, a half and the bit that is left *)
+fn half_split {x:nat | x < 65536} (x: int x): [a,s:nat | x == 2*a + s; a < 32768; s < 2] @(int a, int s) = let
+  val a = x / 2
+in @(a, sub_g1(x, mul_g1(2, a))) end
+
+(* The word h:l rotated right by one bit, with the proof that it is *)
+#pub fun rotr1 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR1(h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr1 {h,l} (h, l) = let
+  val [a:int, s:int] @(a, s) = half_split(h)
+  val [b:int, t:int] @(b, t) = half_split(l)
+in (ROTR1_mk{a,b}{s,t}() | @(add_g1(a, mul_g1(32768, t)), add_g1(b, mul_g1(32768, s)))) end
+
+(* The word shifted right by one bit, with the proof that it is *)
+#pub fun shr1 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR1(h, l, h2, l2) | @(int h2, int l2))
+
+implement shr1 {h,l} (h, l) = let
+  val [a:int, s:int] @(a, s) = half_split(h)
+  val [b:int, t:int] @(b, t) = half_split(l)
+in (SHR1_mk{a,b}{s,t}() | @(a, add_g1(b, mul_g1(32768, s)))) end
+
+(* The word h:l rotated right by n bits, with the proof that it is: n
+   rotations by one bit *)
+#pub fun rotr {n,h,l:nat | h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2))
+
+implement rotr {n,h,l} (n, h, l) = let
+  fun loop {n,h,l:nat | h < 65536; l < 65536} .<n>. (n: int n, h: int h, l: int l)
+    : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2)) =
+    if n = 0 then (ROTR_zero() | @(h, l))
+    else let
+      val (once | @(h1, l1)) = rotr1(h, l)
+      val (rest | @(h2, l2)) = loop(sub_g1(n, 1), h1, l1)
+    in (ROTR_succ(once, rest) | @(h2, l2)) end
+in loop(n, h, l) end
+
+(* The word h:l shifted right by n bits, with the proof that it is *)
+#pub fun shr {n,h,l:nat | h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2))
+
+implement shr {n,h,l} (n, h, l) = let
+  fun loop {n,h,l:nat | h < 65536; l < 65536} .<n>. (n: int n, h: int h, l: int l)
+    : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2)) =
+    if n = 0 then (SHR_zero() | @(h, l))
+    else let
+      val (once | @(h1, l1)) = shr1(h, l)
+      val (rest | @(h2, l2)) = loop(sub_g1(n, 1), h1, l1)
+    in (SHR_succ(once, rest) | @(h2, l2)) end
+in loop(n, h, l) end
+
+(* The sum modulo 2 to the 32 of two words, with the proof that it is *)
+#pub fun add32 {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (h1: int h1, l1: int l1, h2: int h2, l2: int l2)
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (ADD32(h1, l1, h2, l2, h3, l3) | @(int h3, int l3))
+
+implement add32 {h1,l1,h2,l2} (h1, l1, h2, l2) = let
+  val low = add_g1(l1, l2)
+in
+  if gte_g1(low, 65536) then let
+    val l3 = sub_g1(low, 65536)
+    val high = add_g1(add_g1(h1, h2), 1)
+  in
+    if gte_g1(high, 65536) then (ADD32_mk{h1,l1,h2,l2,h1+h2+1-65536,l1+l2-65536}{1,1}() | @(sub_g1(high, 65536), l3))
+    else (ADD32_mk{h1,l1,h2,l2,h1+h2+1,l1+l2-65536}{1,0}() | @(high, l3))
+  end
+  else let
+    val high = add_g1(h1, h2)
+  in
+    if gte_g1(high, 65536) then (ADD32_mk{h1,l1,h2,l2,h1+h2-65536,l1+l2}{0,1}() | @(sub_g1(high, 65536), low))
+    else (ADD32_mk{h1,l1,h2,l2,h1+h2,l1+l2}{0,0}() | @(high, low))
+  end
+end
+
+(* The word with every bit flipped, with the proof that it is *)
+#pub fun not32 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : (NOT32(h, l, 65535 - h, 65535 - l) | @(int(65535 - h), int(65535 - l)))
+
+implement not32 {h,l} (h, l) = (NOT32_mk() | @(sub_g1(65535, h), sub_g1(65535, l)))
+
+(* a and b, a or b of numbers under 2 to the k are under 2 to the k *)
+#pub prfun and_bound {k,p,a,b,c:nat | a < p; b < p} (POW2(k, p), AND(a, b, c)): [c < p] void
+
+prfun _and_bound {k,p,a,b,c:nat | a < p; b < p} .<k>. (w: POW2(k, p), x: AND(a, b, c)): [c < p] void =
+  case+ x of
+  | AND_nil() => (case+ w of POW2_zero() => () | POW2_succ(_) => ())
+  | AND_00(x1) => (case+ w of POW2_succ(w1) => _and_bound(w1, x1))
+  | AND_01(x1) => (case+ w of POW2_succ(w1) => _and_bound(w1, x1))
+  | AND_10(x1) => (case+ w of POW2_succ(w1) => _and_bound(w1, x1))
+  | AND_11(x1) => (case+ w of POW2_succ(w1) => _and_bound(w1, x1))
+
+primplement and_bound {k,p,a,b,c} (w, x) = _and_bound(w, x)
+
+#pub prfun or_bound {k,p,a,b,c:nat | a < p; b < p} (POW2(k, p), OR(a, b, c)): [c < p] void
+
+prfun _or_bound {k,p,a,b,c:nat | a < p; b < p} .<k>. (w: POW2(k, p), x: OR(a, b, c)): [c < p] void =
+  case+ x of
+  | OR_nil() => (case+ w of POW2_zero() => () | POW2_succ(_) => ())
+  | OR_00(x1) => (case+ w of POW2_succ(w1) => _or_bound(w1, x1))
+  | OR_01(x1) => (case+ w of POW2_succ(w1) => _or_bound(w1, x1))
+  | OR_10(x1) => (case+ w of POW2_succ(w1) => _or_bound(w1, x1))
+  | OR_11(x1) => (case+ w of POW2_succ(w1) => _or_bound(w1, x1))
+
+primplement or_bound {k,p,a,b,c} (w, x) = _or_bound(w, x)
+
+(* 2 to the 16, the size of a half *)
+#pub prfun pow2_half (): POW2(16, 65536)
+
+primplement pow2_half () =
+  POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(
+  POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(POW2_succ(
+  POW2_zero()))))))))))))))))
+
+(* The bitwise operations on words, each half by its own proof: the
+   exclusive or, and and or of h1:l1 and h2:l2 are h3:l3 where the high
+   halves and the low halves are each related by XOR, AND or OR *)
+#pub fun xor32 {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (h1: int h1, l1: int l1, h2: int h2, l2: int l2)
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (XOR(h1, h2, h3), XOR(l1, l2, l3) | @(int h3, int l3))
+
+implement xor32 {h1,l1,h2,l2} (h1, l1, h2, l2) = let
+  val (high | h3) = xor_g1(h1, h2)
+  val (low | l3) = xor_g1(l1, l2)
+  prval () = xor_bound(pow2_half(), high)
+  prval () = xor_bound(pow2_half(), low)
+in (high, low | @(h3, l3)) end
+
+#pub fun and32 {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (h1: int h1, l1: int l1, h2: int h2, l2: int l2)
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (AND(h1, h2, h3), AND(l1, l2, l3) | @(int h3, int l3))
+
+implement and32 {h1,l1,h2,l2} (h1, l1, h2, l2) = let
+  val (high | h3) = and_proved(h1, h2)
+  val (low | l3) = and_proved(l1, l2)
+  prval () = and_bound(pow2_half(), high)
+  prval () = and_bound(pow2_half(), low)
+in (high, low | @(h3, l3)) end
+
+#pub fun or32 {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (h1: int h1, l1: int l1, h2: int h2, l2: int l2)
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (OR(h1, h2, h3), OR(l1, l2, l3) | @(int h3, int l3))
+
+implement or32 {h1,l1,h2,l2} (h1, l1, h2, l2) = let
+  val (high | h3) = or_proved(h1, h2)
+  val (low | l3) = or_proved(l1, l2)
+  prval () = or_bound(pow2_half(), high)
+  prval () = or_bound(pow2_half(), low)
+in (high, low | @(h3, l3)) end
+
+(* Each operation of a word gives one word *)
+#pub prfun rotr1_functional {h,l,h2,l2,h3,l3:nat} (ROTR1(h, l, h2, l2), ROTR1(h, l, h3, l3)): [h2 == h3; l2 == l3] void
+
+primplement rotr1_functional {h,l,h2,l2,h3,l3} (p, q) =
+  case+ p of ROTR1_mk() => (case+ q of ROTR1_mk() => ())
+
+#pub prfun rotr_functional {n,h,l,h2,l2,h3,l3:nat} (ROTR(n, h, l, h2, l2), ROTR(n, h, l, h3, l3)): [h2 == h3; l2 == l3] void
+
+prfun _rotr_functional {n,h,l,h2,l2,h3,l3:nat} .<n>. (p: ROTR(n, h, l, h2, l2), q: ROTR(n, h, l, h3, l3)): [h2 == h3; l2 == l3] void =
+  case+ p of
+  | ROTR_zero() => (case+ q of ROTR_zero() => ())
+  | ROTR_succ(p1, p2) => (case+ q of
+    | ROTR_succ(q1, q2) => let
+        prval () = rotr1_functional(p1, q1)
+      in _rotr_functional(p2, q2) end)
+
+primplement rotr_functional {n,h,l,h2,l2,h3,l3} (p, q) = _rotr_functional(p, q)
+
+#pub prfun shr1_functional {h,l,h2,l2,h3,l3:nat} (SHR1(h, l, h2, l2), SHR1(h, l, h3, l3)): [h2 == h3; l2 == l3] void
+
+primplement shr1_functional {h,l,h2,l2,h3,l3} (p, q) =
+  case+ p of SHR1_mk() => (case+ q of SHR1_mk() => ())
+
+#pub prfun shr_functional {n,h,l,h2,l2,h3,l3:nat} (SHR(n, h, l, h2, l2), SHR(n, h, l, h3, l3)): [h2 == h3; l2 == l3] void
+
+prfun _shr_functional {n,h,l,h2,l2,h3,l3:nat} .<n>. (p: SHR(n, h, l, h2, l2), q: SHR(n, h, l, h3, l3)): [h2 == h3; l2 == l3] void =
+  case+ p of
+  | SHR_zero() => (case+ q of SHR_zero() => ())
+  | SHR_succ(p1, p2) => (case+ q of
+    | SHR_succ(q1, q2) => let
+        prval () = shr1_functional(p1, q1)
+      in _shr_functional(p2, q2) end)
+
+primplement shr_functional {n,h,l,h2,l2,h3,l3} (p, q) = _shr_functional(p, q)
+
+#pub prfun add32_functional {h1,l1,h2,l2,h3,l3,h4,l4:nat}
+  (ADD32(h1, l1, h2, l2, h3, l3), ADD32(h1, l1, h2, l2, h4, l4)): [h3 == h4; l3 == l4] void
+
+primplement add32_functional {h1,l1,h2,l2,h3,l3,h4,l4} (p, q) =
+  case+ p of ADD32_mk() => (case+ q of ADD32_mk() => ())

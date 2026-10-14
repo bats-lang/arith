@@ -1,0 +1,6 @@
+[package]
+name = "rotr-result-claimed-wrong"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

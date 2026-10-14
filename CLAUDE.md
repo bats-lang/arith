@@ -25,3 +25,19 @@ that would move instead of moving it: move it in a pull request of its
 own. A pull request that needs newer packages runs `bats lock
 --repository <dir>` and commits `bats.lock` (and
 `.github/repository-version`) with the change.
+
+## Words are two halves (bats-lang/sha256#29)
+
+A 32-bit word is its high and low halves, each proven under 65536
+(`ROTR`, `SHR`, `ADD32`, `NOT32`, and `xor32`, `and32`, `or32` over the
+`XOR`, `AND`, `OR` of each half). The solver is 32-bit: a constant or
+coefficient of 2 to the 30 or more in a hypothesis makes its context
+contradictory, so no proof here names 2 to the 32 and halves are what the
+relations are indexed by. The specifications are the standard's own
+definitions, one bit at a time (a rotation by n is n rotations by one
+bit, an addition is modulo 2 to the 32 by its carries); `rotr` and `shr`
+are loops of single bits, which is slow, so a caller that needs speed
+adds a faster step with a proof against the same relations. What is
+trusted is only the C operators under `and_proved`, `or_proved` and
+`xor_g1`; `tests/dynamic/word` compares every operation with the
+standard's formulas on C's unsigned int.

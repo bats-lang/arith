@@ -1,0 +1,6 @@
+[package]
+name = "add32-carry-forgotten"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

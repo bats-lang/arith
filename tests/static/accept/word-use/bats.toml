@@ -1,0 +1,6 @@
+[package]
+name = "word-use"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
