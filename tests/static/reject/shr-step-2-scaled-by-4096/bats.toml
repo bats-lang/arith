@@ -1,0 +1,6 @@
+[package]
+name = "shr-step-2-scaled-by-4096"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

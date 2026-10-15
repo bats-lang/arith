@@ -748,3 +748,149 @@ fn _rotr_stage_16 {n,h,l:nat | n < 32; h < 65536; l < 65536} (n: int n, h: int h
   : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | @(int h2, int l2))
 
 implement rotr_fast {n,h,l} (n, h, l) = _rotr_stage_16(n, h, l)
+
+(* ===== Fast shifts (arith#36) =====
+
+   The same decomposition for SHR: a shift by n < 32 is at most five
+   constant-time steps (by 16, 8, 4, 2 and 1, one for each set bit of n),
+   each proved against SHR, composed by shr_add. A step by k bits is stated
+   on digits, as the rotations are: with p = 2 to the k and q = 2 to the
+   16 - k, the halves are h = p*a + r and l = p*b + t (r and t are the k low
+   bits), and h:l shifted right by k is a:(b + q*r): the high half loses its
+   k low bits to the top of the low half, and the bits of the low half are
+   lost. Coefficients are at most 2 to the 16, no division is nested. *)
+
+(* the same shift under equal halves *)
+prfn shr_cast {n,h,l,h2,l2,c,d,c2,d2:nat | h == c; l == d; h2 == c2; l2 == d2}
+  (p: SHR(n, h, l, h2, l2)): SHR(n, c, d, c2, d2) = p
+
+(* by 1 bit: h = 2a + r, l = 2b + t *)
+#pub prfun shr_digits_1 {a,b,r,t:nat | a < 32768; b < 32768; r < 2; t < 2} ()
+  : SHR(1, 2*a + r, 2*b + t, a, b + 32768*r)
+
+primplement shr_digits_1 {a,b,r,t} () = SHR_succ(SHR1_mk{a,b}{r,t}(), SHR_zero())
+
+(* by 2 bits: h = 4*A + R, l = 4*B + T, two steps of 1 *)
+#pub prfun shr_digits_2 {a,b,r,t:nat | a < 16384; b < 16384; r < 4; t < 4} ()
+  : SHR(2, 4*a + r, 4*b + t, a, b + 16384*r)
+
+primplement shr_digits_2 {a,b,r,t} () = let
+  prval first = shr_digits_1{2*a + r/2, 2*b + t/2, r - 2*(r/2), t - 2*(t/2)}()
+  prval second = shr_digits_1{a, b + 16384*(r - 2*(r/2)), r/2, t/2}()
+in shr_cast(shr_add(first, second)) end
+
+(* by 4 bits: h = 16*A + R, l = 16*B + T, two steps of 2 *)
+#pub prfun shr_digits_4 {a,b,r,t:nat | a < 4096; b < 4096; r < 16; t < 16} ()
+  : SHR(4, 16*a + r, 16*b + t, a, b + 4096*r)
+
+primplement shr_digits_4 {a,b,r,t} () = let
+  prval first = shr_digits_2{4*a + r/4, 4*b + t/4, r - 4*(r/4), t - 4*(t/4)}()
+  prval second = shr_digits_2{a, b + 4096*(r - 4*(r/4)), r/4, t/4}()
+in shr_cast(shr_add(first, second)) end
+
+(* by 8 bits: h = 256*A + R, l = 256*B + T, two steps of 4 *)
+#pub prfun shr_digits_8 {a,b,r,t:nat | a < 256; b < 256; r < 256; t < 256} ()
+  : SHR(8, 256*a + r, 256*b + t, a, b + 256*r)
+
+primplement shr_digits_8 {a,b,r,t} () = let
+  prval first = shr_digits_4{16*a + r/16, 16*b + t/16, r - 16*(r/16), t - 16*(t/16)}()
+  prval second = shr_digits_4{a, b + 256*(r - 16*(r/16)), r/16, t/16}()
+in shr_cast(shr_add(first, second)) end
+
+(* by 16 bits: the high half moves down and zero comes in. h = 256*hh + hl,
+   l = 256*lh + ll *)
+#pub prfun shr_by_16 {h,l:nat | h < 65536; l < 65536} ()
+  : SHR(16, h, l, 0, h)
+
+primplement shr_by_16 {h,l} () = let
+  prval first = shr_digits_8{h/256, l/256, h - 256*(h/256), l - 256*(l/256)}()
+  prval second = shr_digits_8{0, h - 256*(h/256), h/256, l/256}()
+in shr_cast(shr_add(first, second)) end
+
+#pub fun shr_step_1 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(1, h, l, h2, l2) | @(int h2, int l2))
+
+implement shr_step_1 {h,l} (h, l) = let
+  val a = h / 2
+  val b = l / 2
+  val r = sub_g1(h, mul_g1(2, a))
+  prval pf = shr_digits_1{h/2, l/2, h - 2*(h/2), l - 2*(l/2)}()
+in (shr_cast(pf) | @(a, add_g1(b, mul_g1(32768, r)))) end
+
+#pub fun shr_step_2 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(2, h, l, h2, l2) | @(int h2, int l2))
+
+implement shr_step_2 {h,l} (h, l) = let
+  val a = h / 4
+  val b = l / 4
+  val r = sub_g1(h, mul_g1(4, a))
+  prval pf = shr_digits_2{h/4, l/4, h - 4*(h/4), l - 4*(l/4)}()
+in (shr_cast(pf) | @(a, add_g1(b, mul_g1(16384, r)))) end
+
+#pub fun shr_step_4 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(4, h, l, h2, l2) | @(int h2, int l2))
+
+implement shr_step_4 {h,l} (h, l) = let
+  val a = h / 16
+  val b = l / 16
+  val r = sub_g1(h, mul_g1(16, a))
+  prval pf = shr_digits_4{h/16, l/16, h - 16*(h/16), l - 16*(l/16)}()
+in (shr_cast(pf) | @(a, add_g1(b, mul_g1(4096, r)))) end
+
+#pub fun shr_step_8 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(8, h, l, h2, l2) | @(int h2, int l2))
+
+implement shr_step_8 {h,l} (h, l) = let
+  val a = h / 256
+  val b = l / 256
+  val r = sub_g1(h, mul_g1(256, a))
+  prval pf = shr_digits_8{h/256, l/256, h - 256*(h/256), l - 256*(l/256)}()
+in (shr_cast(pf) | @(a, add_g1(b, mul_g1(256, r)))) end
+
+#pub fun shr_step_16 {h,l:nat | h < 65536; l < 65536} (h: int h, l: int l)
+  : (SHR(16, h, l, 0, h) | @(int 0, int h))
+
+implement shr_step_16 {h,l} (h, l) = (shr_by_16{h,l}() | @(0, h))
+
+fn _shr_stage_1 {n,h,l:nat | n < 2; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 1) then shr_step_1(h, l) else (SHR_zero() | @(h, l))
+
+fn _shr_stage_2 {n,h,l:nat | n < 4; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 2) then let
+    val (first | @(h1, l1)) = shr_step_2(h, l)
+    val (rest | @(h2, l2)) = _shr_stage_1(sub_g1(n, 2), h1, l1)
+  in (shr_add(first, rest) | @(h2, l2)) end
+  else _shr_stage_1(n, h, l)
+
+fn _shr_stage_4 {n,h,l:nat | n < 8; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 4) then let
+    val (first | @(h1, l1)) = shr_step_4(h, l)
+    val (rest | @(h2, l2)) = _shr_stage_2(sub_g1(n, 4), h1, l1)
+  in (shr_add(first, rest) | @(h2, l2)) end
+  else _shr_stage_2(n, h, l)
+
+fn _shr_stage_8 {n,h,l:nat | n < 16; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 8) then let
+    val (first | @(h1, l1)) = shr_step_8(h, l)
+    val (rest | @(h2, l2)) = _shr_stage_4(sub_g1(n, 8), h1, l1)
+  in (shr_add(first, rest) | @(h2, l2)) end
+  else _shr_stage_4(n, h, l)
+
+fn _shr_stage_16 {n,h,l:nat | n < 32; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2)) =
+  if gte_g1(n, 16) then let
+    val (first | @(h1, l1)) = shr_step_16(h, l)
+    val (rest | @(h2, l2)) = _shr_stage_8(sub_g1(n, 16), h1, l1)
+  in (shr_add(first, rest) | @(h2, l2)) end
+  else _shr_stage_8(n, h, l)
+
+(* The word h:l shifted right by n < 32 bits, with the proof that it is,
+   in at most five constant-time steps *)
+#pub fun shr_fast {n,h,l:nat | n < 32; h < 65536; l < 65536} (n: int n, h: int h, l: int l)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2))
+
+implement shr_fast {n,h,l} (n, h, l) = _shr_stage_16(n, h, l)

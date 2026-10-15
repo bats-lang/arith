@@ -61,6 +61,22 @@ tried with a false variant for that reason (this is how it was found).
 `tests/dynamic/fast_rot` compares every amount, step and the slow `rotr`
 with C's unsigned int.
 
+## Fast shifts (arith#36)
+
+`shr_fast` shifts right by n < 32 in at most five constant-time steps
+(`shr_step_16`, `_8`, `_4`, `_2`, `_1`), each returning the proof `SHR(k, ...)`
+of the same relation as the single-bit `shr`, composed by `shr_add` as the
+rotations are. The digit lemmas mirror `rotr_digits_*`: with h = p*a + r and
+l = p*b + t, p = 2 to the k and q = 2 to the 16 - k, the result is a:(b + q*r)
+(`shr_digits_1/2/4/8`, 2k from two of k, each with no nested division and
+coefficients at most 2 to the 16), and `shr_by_16` is `SHR(16, h, l, 0, h)`
+from two of 8. Checked by the gmp solver in under a second;
+`tests/dynamic/fast_shr` compares every amount and step with C's `>>` and the
+slow `shr`. Each lemma, step and the composition has a false variant in
+`tests/static/reject` (`shr-*`, and `rotr-step-*`, `not32-*`, `xor32-*`,
+`and32-*`, `or32-*`, `pow2-half-*` for the earlier ones that had none), and
+quire's mutation check over `src/lib.bats` rejects all 154 mutants under gmp.
+
 ## The proofs are checked by the infinite-precision solver (bats-lang/quire#594)
 
 The int build of the constraint solver (`ATS2-Postiats-int-0.4.2`, C `int`
