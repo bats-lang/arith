@@ -1,0 +1,6 @@
+[package]
+name = "not32-high-complement-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

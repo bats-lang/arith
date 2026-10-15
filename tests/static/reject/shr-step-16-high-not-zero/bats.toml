@@ -1,0 +1,6 @@
+[package]
+name = "shr-step-16-high-not-zero"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

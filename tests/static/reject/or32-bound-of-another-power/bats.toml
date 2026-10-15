@@ -1,0 +1,6 @@
+[package]
+name = "or32-bound-of-another-power"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

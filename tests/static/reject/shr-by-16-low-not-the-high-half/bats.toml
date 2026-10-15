@@ -1,0 +1,6 @@
+[package]
+name = "shr-by-16-low-not-the-high-half"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

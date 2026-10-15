@@ -1,0 +1,6 @@
+[package]
+name = "rotr-16-not-swapped"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

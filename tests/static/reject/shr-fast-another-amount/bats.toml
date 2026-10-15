@@ -1,0 +1,6 @@
+[package]
+name = "shr-fast-another-amount"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
