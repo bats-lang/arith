@@ -1,0 +1,6 @@
+[package]
+name = "shr-step-8-low-without-bits"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

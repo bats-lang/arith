@@ -1,0 +1,6 @@
+[package]
+name = "and32-no-bound-proved"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

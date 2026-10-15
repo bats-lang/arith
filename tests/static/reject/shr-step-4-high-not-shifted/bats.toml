@@ -1,0 +1,6 @@
+[package]
+name = "shr-step-4-high-not-shifted"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

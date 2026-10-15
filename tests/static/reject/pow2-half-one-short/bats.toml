@@ -1,0 +1,6 @@
+[package]
+name = "pow2-half-one-short"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

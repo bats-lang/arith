@@ -1,0 +1,6 @@
+[package]
+name = "shr-add-wrong-sum"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

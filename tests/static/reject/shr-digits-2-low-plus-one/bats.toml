@@ -1,0 +1,6 @@
+[package]
+name = "shr-digits-2-low-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
