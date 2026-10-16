@@ -1,0 +1,6 @@
+[package]
+name = "xor32-high-is-the-sum"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
