@@ -1,0 +1,6 @@
+[package]
+name = "or32-high-below-the-sum"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

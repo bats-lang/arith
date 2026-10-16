@@ -1,0 +1,6 @@
+[package]
+name = "and32-low-is-first-operand"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
