@@ -1,0 +1,7 @@
+[package]
+name = "word32_rot_bytes"
+kind = "bin"
+unsafe = true
+
+[dependencies]
+"arith" = ""

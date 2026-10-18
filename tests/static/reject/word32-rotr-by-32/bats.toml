@@ -1,0 +1,6 @@
+[package]
+name = "word32-rotr-by-32"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

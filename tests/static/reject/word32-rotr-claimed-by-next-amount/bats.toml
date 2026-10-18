@@ -1,0 +1,6 @@
+[package]
+name = "word32-rotr-claimed-by-next-amount"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

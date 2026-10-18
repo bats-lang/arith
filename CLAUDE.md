@@ -90,16 +90,69 @@ halves-based operation returns, so a proof built on those goes through with
 either, and `shr_functional` and `xor_functional` equate them. Trusted: that
 the C operator is the relation its type says, for any word, as `and_proved`
 is; assumed of the platform: a 32-bit unsigned int and shifts by 0 to 31 (the
-type allows no other). No C is written and no `$UNSAFE` used here, so the
-package stays safe. `tests/dynamic/word32` (unsafe = true, only to see
+type allows no other). No C is written and no `$UNSAFE` is used in these (the rotation,
+packing and bytes below are the package's one `$UNSAFE` block). `tests/dynamic/word32` (unsafe = true, only to see
 through the abstract type) compares every operation with the halves-based
 one and with the standard's formula, on edge words and 3000 pseudo-random
 pairs, every shift; `tests/static/reject/word32-*` rejects a shift claimed to
 be by another amount, the exclusive or's two proofs swapped and a complement
-claimed one more. Not here yet, because each needs more than a prelude name:
-the rotation (no prelude macro; C or `$UNSAFE.cast`, so `unsafe = true`, or a
-proof that ROTR is SHR or SHL), and packing four bytes into a word and
-unpacking one (a left shift and its relation).
+claimed one more. Rotation, packing and bytes are in the next section.
+
+## The one unsafe block (bats-lang/sha256#40)
+
+**Authorization.** The owner authorized, in the session that wrote this
+(2026-10-18), `unsafe = true` in this package's `bats.toml` for exactly one
+`$UNSAFE begin ... end` block holding three trusted primitives on `word32`:
+rotate right, pack four bytes into a word, and take a byte of a word.
+Nothing else in arith may become unsafe: a second `$UNSAFE` block, C code,
+`praxi`, `assume`, `castfn` or `$extfcall` here needs a new ruling, and the
+block does not grow past these three. Why: a proof-preserving fast SHA-256
+(sha256#40): a word as one machine word, each operation returning the same
+relation (`ROTR`, `ADD32`, ...) the halves-based specification does, so
+sha256's proofs go through unchanged and the proved code runs on `uint`.
+
+**What is in the block** (`word32_rotr`, `word32_pack`, `word32_byte`, at the
+end of `src/lib.bats`), each an ordinary ATS expression on unsigned int whose
+result is given the type of the relation it computes by one `$UNSAFE.cast`
+(as array's cells are), with its assumption stated at its declaration:
+
+* `word32_rotr {0 < n < 32} (word32(h, l), int n)` returns `ROTR(n, h, l, h2,
+  l2)` and `word32(h2, l2)`: the very relation `rotr` and `rotr_fast` give, so
+  `rotr_functional` equates them. `(x >> n) | (x << (32 - n))`; n is 1 to 31
+  because a shift by 32 is undefined in C (a rotation by 0 is the identity
+  and not needed).
+* `word32_pack {a,b,c,d < 256}` returns `word32(256*a + b, 256*c + d)`, big
+  endian (FIPS 180-4, section 3.1). The type states the halves, so there is
+  no proof to fabricate, only the value.
+* `word32_byte {i < 4} (word32(h, l), int i)` returns `WORD_BYTE(i, h, l, b)`
+  and the byte `b`, counted from the most significant: byte 0 and 1 are the
+  digits of the high half in base 256, 2 and 3 of the low half
+  (`WORD_BYTE_0..3`, on digits so no division is in a type, which the
+  solver does not like). `word_byte_functional` (proved here, no `praxi`)
+  says a byte is one number.
+
+Assumed of the platform, as for the operations above: unsigned int is 32 bits
+(every bats target) and shifts are by 0 to 31 (the types allow no other).
+Tested, not proved (`tests/dynamic/word32_rot_bytes`): every amount 1 to 31
+against the bit by bit `rotr`, `rotr_fast` and the standard's formula, every
+byte index against the quotient and remainder by 256 of the halves, every
+value of every byte position over four backgrounds, edge words and 3000
+words from a fixed seed; three one-line mutants (a rotation by one bit too
+few, a byte packed twice, a byte mask of 127) were each caught. Rejected
+(`tests/static/reject/word32-rotr-*`, `word32-byte-*`, `word32-pack-*`,
+`word-byte-functional-plus-one`): an amount of 0 or 32, an index of 4, a
+rotation claimed by the next amount, a byte claimed as the next index, a
+byte of 256, halves swapped, a false lemma.
+
+**Alternative considered and rejected.** Proving ROTR from `SHR`, a new `SHL`
+and an or of disjoint halves, per amount (SHA-256 uses 2, 6, 7, 11, 13, 17,
+18, 19, 22, 25), would keep the package safe, but it is a much larger job
+(a `SHL` chain, a disjoint-or lemma, a closed-form digit lemma for each
+amount whose coefficients the 32-bit solver can take) for no gain at run
+time, since the C compiler turns the three operations into the rotate
+anyway; likewise packing and bytes would need a `SHL` and the same lemma. The
+precedent is array: `unsafe = true` with a small trusted core, tested in the
+package.
 
 ## The proofs are checked by the infinite-precision solver (bats-lang/quire#594)
 
