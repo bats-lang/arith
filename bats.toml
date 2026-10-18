@@ -1,3 +1,4 @@
 [package]
 name = "arith"
 kind = "lib"
+unsafe = true

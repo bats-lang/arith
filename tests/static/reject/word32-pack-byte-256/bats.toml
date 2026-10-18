@@ -1,0 +1,6 @@
+[package]
+name = "word32-pack-byte-256"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

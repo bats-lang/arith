@@ -1,0 +1,6 @@
+[package]
+name = "word-byte-functional-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

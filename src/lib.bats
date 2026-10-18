@@ -953,3 +953,81 @@ implement shr_fast {n,h,l} (n, h, l) = _shr_stage_16(n, h, l)
 (* Shifted right by n < 32 bits: SHR, the bit by bit specification *)
 #pub fun word32_shr {n,h,l:nat | n < 32; h < 65536; l < 65536} (x: word32(h, l), n: int n)
   : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | word32(h2, l2)) = "mac#atspre_g0uint_lsr_uint"
+
+(* ========== Rotation, packing and bytes of a word (bats-lang/sha256#40) ========== *)
+
+(* The three primitives of the one $UNSAFE block of this package (the owner
+   authorized unsafe = true for exactly this block; see CLAUDE.md). ATS's
+   prelude has no rotate, and a word cannot be made from, or taken apart
+   into, bytes by a name it has with a type that states the result, so these
+   are ordinary ATS expressions on unsigned int whose result is given the
+   type of the relation it computes by one cast, as array's cells are.
+
+   WORD_BYTE(i, h, l, b): b is byte i of the word h:l, counting from the
+   most significant (FIPS 180-4, section 3.1: a word is four bytes, big
+   endian). Stated on digits, as the fast rotations are: byte 0 and byte 1
+   are the digits of the high half in base 256, byte 2 and byte 3 those of
+   the low half, so no division appears in a type. *)
+#pub dataprop WORD_BYTE(int, int, int, int) =
+  | {b,r,l:nat | b < 256; r < 256; l < 65536} WORD_BYTE_0(0, 256*b + r, l, b)
+  | {q,b,l:nat | q < 256; b < 256; l < 65536} WORD_BYTE_1(1, 256*q + b, l, b)
+  | {h,b,r:nat | h < 65536; b < 256; r < 256} WORD_BYTE_2(2, h, 256*b + r, b)
+  | {h,q,b:nat | h < 65536; q < 256; b < 256} WORD_BYTE_3(3, h, 256*q + b, b)
+
+(* The word h:l rotated right by n bits, 0 < n < 32 (a rotation by 0 would
+   shift left by 32, which C leaves undefined; ROTR_zero is the identity
+   anyway): the proof is the very ROTR the single-bit specification and
+   rotr_fast give, so rotr_functional equates them. Trusted: that
+   (x >> n) | (x << (32 - n)) on an unsigned int of exactly 32 bits is that
+   relation. Tested in tests/dynamic/word32_rot_bytes against rotr, the bit
+   by bit specification, for every amount. *)
+#pub fun word32_rotr {n,h,l:nat | 0 < n; n < 32; h < 65536; l < 65536} (x: word32(h, l), n: int n)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | word32(h2, l2))
+
+(* Four bytes as the word they spell, big endian: the halves are 256a + b
+   and 256c + d, which is also what the type states, so no proof is needed
+   beyond the cast of the value. Trusted: a << 24 | b << 16 | c << 8 | d on
+   unsigned int, with each byte under 256 by its type, is that number. *)
+#pub fun word32_pack {a,b,c,d:nat | a < 256; b < 256; c < 256; d < 256}
+  (a: int a, b: int b, c: int c, d: int d): word32(256*a + b, 256*c + d)
+
+(* Byte i (0 to 3, from the most significant) of a word, with the proof
+   that it is. Trusted: (x >> (24 - 8 i)) & 255 on unsigned int is that
+   byte. *)
+#pub fun word32_byte {i,h,l:nat | i < 4; h < 65536; l < 65536} (x: word32(h, l), i: int i)
+  : [b:nat | b < 256] (WORD_BYTE(i, h, l, b) | int b)
+
+$UNSAFE begin
+
+implement word32_rotr {n,h,l} (x, n) = let
+  val u = $UNSAFE.cast{uint}(x)
+  val r = (u >> n) lor (u << (32 - n))
+in
+  $UNSAFE.cast{[h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | word32(h2, l2))}(r)
+end
+
+implement word32_pack {a,b,c,d} (a, b, c, d) = let
+  val r = (g0int2uint_int_uint(a) << 24) lor (g0int2uint_int_uint(b) << 16)
+    lor (g0int2uint_int_uint(c) << 8) lor g0int2uint_int_uint(d)
+in
+  $UNSAFE.cast{word32(256*a + b, 256*c + d)}(r)
+end
+
+implement word32_byte {i,h,l} (x, i) = let
+  val u = $UNSAFE.cast{uint}(x)
+  val v = g0uint2int_uint_int((u >> (24 - 8 * i)) land g0int2uint_int_uint(255))
+in
+  $UNSAFE.cast{[b:nat | b < 256] (WORD_BYTE(i, h, l, b) | int b)}(v)
+end
+
+end
+
+(* A byte of a word is one number *)
+#pub prfun word_byte_functional {i,h,l,b1,b2:nat} (WORD_BYTE(i, h, l, b1), WORD_BYTE(i, h, l, b2)): [b1 == b2] void
+
+primplement word_byte_functional {i,h,l,b1,b2} (p, q) =
+  case+ p of
+  | WORD_BYTE_0() => (case+ q of WORD_BYTE_0() => ())
+  | WORD_BYTE_1() => (case+ q of WORD_BYTE_1() => ())
+  | WORD_BYTE_2() => (case+ q of WORD_BYTE_2() => ())
+  | WORD_BYTE_3() => (case+ q of WORD_BYTE_3() => ())
