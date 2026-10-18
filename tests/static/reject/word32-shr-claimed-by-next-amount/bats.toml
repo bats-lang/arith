@@ -1,0 +1,6 @@
+[package]
+name = "word32-shr-claimed-by-next-amount"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

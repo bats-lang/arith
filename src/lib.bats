@@ -894,3 +894,62 @@ fn _shr_stage_16 {n,h,l:nat | n < 32; h < 65536; l < 65536} (n: int n, h: int h,
   : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | @(int h2, int l2))
 
 implement shr_fast {n,h,l} (n, h, l) = _shr_stage_16(n, h, l)
+
+
+(* ========== 32-bit words as one machine word (bats-lang/sha256#40) ========== *)
+
+(* word32(h, l) is a C unsigned 32-bit integer whose value is h * 65536 + l.
+   The halves are the index, as everywhere above: the solver of an int
+   build is 32-bit, a constant or coefficient of 2 to the 30 or more in a
+   hypothesis makes its context contradictory, so no type here names
+   2 to the 32. At run time it is one machine word; in the types it is a
+   pair of numbers below 65536, and each operation returns the very
+   relation (ADD32, XOR, AND, OR, NOT32, SHR) that the halves-based
+   operations above return, so a proof built from those goes through with
+   either.
+
+   What is trusted, and what it assumes: that the C operator is the
+   relation its type claims, for any word, the same stance as and_proved
+   and or_proved above (nothing but a stronger type on a name the runtime
+   already has). Each operation is ATS's own prelude operation on unsigned
+   int (atspre_g0uint_*, which the native and the wasm runtime both define
+   as C macros or inline functions, so a call is the operator itself and
+   no C is written here). Assumed of the platform: unsigned int is exactly
+   32 bits (every bats target: LP64 and ILP32 native, wasm32) and a shift
+   is by 0 to 31 (the types allow no other). tests/dynamic/word32 compares
+   every operation with the halves-based ones, which are proved, and with
+   the standard's formulas, on edge words and a pseudo-random sequence, for
+   every amount. *)
+#pub abst@ype word32(h:int, l:int) = uint
+
+(* A number below 65536 as a word: 0 in the high half *)
+#pub fun word32_of_half {l:nat | l < 65536} (l: int l): word32(0, l) = "mac#atspre_g0int2uint_int_uint"
+
+(* A word whose high half is 0, as the number its low half is *)
+#pub fun word32_to_int {l:nat | l < 65536} (x: word32(0, l)): int(l) = "mac#atspre_g0uint2int_uint_int"
+
+(* The sum modulo 2 to the 32 *)
+#pub fun word32_add {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (x: word32(h1, l1), y: word32(h2, l2))
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (ADD32(h1, l1, h2, l2, h3, l3) | word32(h3, l3)) = "mac#atspre_g0uint_add_uint"
+
+(* Exclusive or, and, or, each half by its own relation *)
+#pub fun word32_xor {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (x: word32(h1, l1), y: word32(h2, l2))
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (XOR(h1, h2, h3), XOR(l1, l2, l3) | word32(h3, l3)) = "mac#atspre_g0uint_lxor_uint"
+
+#pub fun word32_and {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (x: word32(h1, l1), y: word32(h2, l2))
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (AND(h1, h2, h3), AND(l1, l2, l3) | word32(h3, l3)) = "mac#atspre_g0uint_land_uint"
+
+#pub fun word32_or {h1,l1,h2,l2:nat | h1 < 65536; l1 < 65536; h2 < 65536; l2 < 65536}
+  (x: word32(h1, l1), y: word32(h2, l2))
+  : [h3,l3:nat | h3 < 65536; l3 < 65536] (OR(h1, h2, h3), OR(l1, l2, l3) | word32(h3, l3)) = "mac#atspre_g0uint_lor_uint"
+
+(* Every bit flipped *)
+#pub fun word32_not {h,l:nat | h < 65536; l < 65536} (x: word32(h, l))
+  : (NOT32(h, l, 65535 - h, 65535 - l) | word32(65535 - h, 65535 - l)) = "mac#atspre_g0uint_lnot_uint"
+
+(* Shifted right by n < 32 bits: SHR, the bit by bit specification *)
+#pub fun word32_shr {n,h,l:nat | n < 32; h < 65536; l < 65536} (x: word32(h, l), n: int n)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (SHR(n, h, l, h2, l2) | word32(h2, l2)) = "mac#atspre_g0uint_lsr_uint"
