@@ -1,0 +1,6 @@
+[package]
+name = "word32-not-high-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

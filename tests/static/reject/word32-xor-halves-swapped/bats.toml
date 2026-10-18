@@ -1,0 +1,6 @@
+[package]
+name = "word32-xor-halves-swapped"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

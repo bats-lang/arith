@@ -77,6 +77,30 @@ slow `shr`. Each lemma, step and the composition has a false variant in
 `and32-*`, `or32-*`, `pow2-half-*` for the earlier ones that had none), and
 quire's mutation check over `src/lib.bats` rejects all 154 mutants under gmp.
 
+## Words as one machine word (bats-lang/sha256#40)
+
+`word32(h, l)` is a C unsigned 32-bit integer whose value is h * 65536 + l,
+indexed by its halves (so no type names 2 to the 32, as above). Each
+operation (`word32_add`, `_xor`, `_and`, `_or`, `_not`, `_shr`) is ATS's own
+prelude operation on unsigned int (`atspre_g0uint_*`: a macro or inline
+function of the runtime, so a call is the C operator itself, in the caller's
+own translation unit, and the proofs are erased) bound with a stronger type:
+it returns the same relation (`ADD32`, `XOR`, `AND`, `OR`, `NOT32`, `SHR`) the
+halves-based operation returns, so a proof built on those goes through with
+either, and `shr_functional` and `xor_functional` equate them. Trusted: that
+the C operator is the relation its type says, for any word, as `and_proved`
+is; assumed of the platform: a 32-bit unsigned int and shifts by 0 to 31 (the
+type allows no other). No C is written and no `$UNSAFE` used here, so the
+package stays safe. `tests/dynamic/word32` (unsafe = true, only to see
+through the abstract type) compares every operation with the halves-based
+one and with the standard's formula, on edge words and 3000 pseudo-random
+pairs, every shift; `tests/static/reject/word32-*` rejects a shift claimed to
+be by another amount, the exclusive or's two proofs swapped and a complement
+claimed one more. Not here yet, because each needs more than a prelude name:
+the rotation (no prelude macro; C or `$UNSAFE.cast`, so `unsafe = true`, or a
+proof that ROTR is SHR or SHL), and packing four bytes into a word and
+unpacking one (a left shift and its relation).
+
 ## The proofs are checked by the infinite-precision solver (bats-lang/quire#594)
 
 The int build of the constraint solver (`ATS2-Postiats-int-0.4.2`, C `int`

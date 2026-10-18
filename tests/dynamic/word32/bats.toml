@@ -1,0 +1,7 @@
+[package]
+name = "word32"
+kind = "bin"
+unsafe = true
+
+[dependencies]
+"arith" = ""
