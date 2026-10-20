@@ -154,6 +154,30 @@ anyway; likewise packing and bytes would need a `SHL` and the same lemma. The
 precedent is array: `unsafe = true` with a small trusted core, tested in the
 package.
 
+## The same three primitives as templates (bats-lang/sha256#59)
+
+`word32_rotr`, `word32_pack` and `word32_byte` are external symbols: a dependent
+calls them, and the C compiler, which compiles each module alone, cannot inline
+them. In the proved SHA-256 that was 106 of 394 instructions a byte (callgrind,
+release, 1 MiB: `word32_pack` 43, `word32_rotr` 36, `word32_byte` 27). A template
+with no template arguments is instantiated by the dependent, in its own
+translation unit (a dependent loads this package's `lib.dats`), so the three are
+also `word32_rotr_inline`, `word32_pack_inline` and `word32_byte_inline`
+(`#pub fun{}`), with the very types of the three above, called as
+`word32_rotr_inline(x, n)`.
+
+Nothing is added to what is trusted: the bodies are the ones of the one
+`$UNSAFE` block (it still holds three primitives, one `$UNSAFE.cast` each, no C);
+the block's `implement word32_rotr` and the other two are now one call of the
+template, so there is a single body of each. The old names stay (additive API).
+`tests/dynamic/word32_inline` is `word32_rot_bytes` on the template names (every
+amount against `rotr`, `rotr_fast` and the standard's formula, every byte index,
+every value of every byte position, 3000 words from a fixed seed), and
+`tests/static/reject/word32-inline-*` repeat the rejects of the three (an amount
+of 0 or 32, a rotation claimed by the next amount, a byte of 256, halves
+swapped, an index of 4, a byte claimed as the next index) with
+`accept/word32-inline-use`.
+
 ## The proofs are checked by the infinite-precision solver (bats-lang/quire#594)
 
 The int build of the constraint solver (`ATS2-Postiats-int-0.4.2`, C `int`

@@ -1,0 +1,6 @@
+[package]
+name = "word32-inline-use"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
