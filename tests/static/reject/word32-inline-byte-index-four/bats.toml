@@ -1,0 +1,6 @@
+[package]
+name = "word32-inline-byte-index-four"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

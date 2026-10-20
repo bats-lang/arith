@@ -997,28 +997,50 @@ implement shr_fast {n,h,l} (n, h, l) = _shr_stage_16(n, h, l)
 #pub fun word32_byte {i,h,l:nat | i < 4; h < 65536; l < 65536} (x: word32(h, l), i: int i)
   : [b:nat | b < 256] (WORD_BYTE(i, h, l, b) | int b)
 
+(* The same three primitives as templates with no template arguments
+   (bats-lang/sha256#59): a dependent instantiates a template in its own
+   translation unit, so the C compiler inlines the rotation, the packing and
+   the byte into the dependent's loop, which a call to the functions above
+   (external symbols compiled alone) cannot be. Same types, same bodies:
+   word32_rotr, word32_pack and word32_byte are these. Use as
+   word32_rotr_inline(x, n). *)
+#pub fun{} word32_rotr_inline {n,h,l:nat | 0 < n; n < 32; h < 65536; l < 65536} (x: word32(h, l), n: int n)
+  : [h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | word32(h2, l2))
+
+#pub fun{} word32_pack_inline {a,b,c,d:nat | a < 256; b < 256; c < 256; d < 256}
+  (a: int a, b: int b, c: int c, d: int d): word32(256*a + b, 256*c + d)
+
+#pub fun{} word32_byte_inline {i,h,l:nat | i < 4; h < 65536; l < 65536} (x: word32(h, l), i: int i)
+  : [b:nat | b < 256] (WORD_BYTE(i, h, l, b) | int b)
+
 $UNSAFE begin
 
-implement word32_rotr {n,h,l} (x, n) = let
+implement{} word32_rotr_inline {n,h,l} (x, n) = let
   val u = $UNSAFE.cast{uint}(x)
   val r = (u >> n) lor (u << (32 - n))
 in
   $UNSAFE.cast{[h2,l2:nat | h2 < 65536; l2 < 65536] (ROTR(n, h, l, h2, l2) | word32(h2, l2))}(r)
 end
 
-implement word32_pack {a,b,c,d} (a, b, c, d) = let
+implement{} word32_pack_inline {a,b,c,d} (a, b, c, d) = let
   val r = (g0int2uint_int_uint(a) << 24) lor (g0int2uint_int_uint(b) << 16)
     lor (g0int2uint_int_uint(c) << 8) lor g0int2uint_int_uint(d)
 in
   $UNSAFE.cast{word32(256*a + b, 256*c + d)}(r)
 end
 
-implement word32_byte {i,h,l} (x, i) = let
+implement{} word32_byte_inline {i,h,l} (x, i) = let
   val u = $UNSAFE.cast{uint}(x)
   val v = g0uint2int_uint_int((u >> (24 - 8 * i)) land g0int2uint_int_uint(255))
 in
   $UNSAFE.cast{[b:nat | b < 256] (WORD_BYTE(i, h, l, b) | int b)}(v)
 end
+
+implement word32_rotr {n,h,l} (x, n) = word32_rotr_inline(x, n)
+
+implement word32_pack {a,b,c,d} (a, b, c, d) = word32_pack_inline(a, b, c, d)
+
+implement word32_byte {i,h,l} (x, i) = word32_byte_inline(x, i)
 
 end
 

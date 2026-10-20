@@ -1,0 +1,6 @@
+[package]
+name = "word32-inline-byte-claimed-as-next-index"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
