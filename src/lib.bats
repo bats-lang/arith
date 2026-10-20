@@ -957,7 +957,7 @@ implement shr_fast {n,h,l} (n, h, l) = _shr_stage_16(n, h, l)
 (* ========== Rotation, packing and bytes of a word (bats-lang/sha256#40) ========== *)
 
 (* The three primitives of the one $UNSAFE block of this package (the owner
-   authorized unsafe = true for exactly this block; see CLAUDE.md). ATS's
+   authorized unsafe = true for exactly this block and no other: one unsafe block). ATS's
    prelude has no rotate, and a word cannot be made from, or taken apart
    into, bytes by a name it has with a type that states the result, so these
    are ordinary ATS expressions on unsigned int whose result is given the
