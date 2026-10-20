@@ -178,6 +178,17 @@ of 0 or 32, a rotation claimed by the next amount, a byte of 256, halves
 swapped, an index of 4, a byte claimed as the next index) with
 `accept/word32-inline-use`.
 
+**Override exposure (the review of arith#57, sha256#59).** A template body is
+compiled into each translation unit that instantiates it, so a package in the
+dependency graph that implements the same template (`implement{} $AR.word32_rotr_inline
+...` in a dependent) replaces it at its own call sites, silently. The external
+names are protected by the linker (a second `word32_rotr` is a link error); the
+templates are not. A safe package that depends on an unsafe one carrying such an
+override gets its body too. Writing such a body needs an unsafe package, since it
+casts. The templates are not new trusted primitives (the owner's ruling). The
+exposure is tracked by bats-lang/bats#421, which rejects an `implement` of a
+template or function that another package declares.
+
 ## The proofs are checked by the infinite-precision solver (bats-lang/quire#594)
 
 The int build of the constraint solver (`ATS2-Postiats-int-0.4.2`, C `int`
