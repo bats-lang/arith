@@ -1,0 +1,6 @@
+[package]
+name = "rotr-digits-1-call-high-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

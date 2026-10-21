@@ -1,3 +1,0 @@
-function claim
-line 6
-unsolved constraint: C3NSTRprop(C3TKmain(); S2Eapp(S2Ecst(==); S2Evar(a(_)), S2Eapp(S2Ecst(+); S2Evar(a2(_)), S2Eintinf(1))))

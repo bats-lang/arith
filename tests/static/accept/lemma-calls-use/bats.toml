@@ -1,0 +1,6 @@
+[package]
+name = "lemma-calls-use"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

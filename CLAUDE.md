@@ -77,9 +77,13 @@ coefficients at most 2 to the 16), and `shr_by_16` is `SHR(16, h, l, 0, h)`
 from two of 8. Checked by the gmp solver in under a second;
 `tests/dynamic/fast_shr` compares every amount and step with C's `>>` and the
 slow `shr`. Each lemma, step and the composition has a false variant in
-`tests/static/reject` (`shr-*`, and `rotr-step-*`, `not32-*`, `xor32-*`,
-`and32-*`, `or32-*`, `pow2-half-*` for the earlier ones that had none), and
-quire's mutation check over `src/lib.bats` rejects all 154 mutants under gmp.
+`tests/static/reject`: `shr-*` (copies of the digit lemmas, and
+`shr-functional-call-*`), and call fixtures for the ones that had none,
+`rotr-step-*-call-*`, `pow2-half-call-*`, `rotr-digits-{1,2,8}-call-*`,
+`rotr-16-not-swapped` (`rotr_by_16`), `add32-functional-*`,
+`rotr1-functional-*`, `shr1-functional-*`, `not32-*`, `xor32-*`, `and32-*`
+and `or32-*`. Quire's mutation check over `src/lib.bats` rejects all 154
+mutants under gmp.
 
 ## Words as one machine word (bats-lang/sha256#40)
 
@@ -200,10 +204,30 @@ inside) proves false statements, even in small linear contexts (151 of 300
 fuzzed ones), so a lemma that type-checks under it can be vacuous. The
 statements here are checked with the gmp build (`gmpknd`, infinite
 precision), which accepted none of those. Each lemma of the words and fast
-rotations has a false variant in `tests/static/reject` (the lemma's own
-body under a statement with one side shifted by one, the exact error and
-its position in `expect`), and `tests/static/mutation_check.py` of quire
-(`--ats-home` for the build) runs the same over every statement of
+rotations has a false variant in `tests/static/reject`. A call fixture is
+the form to write: it calls the real public lemma (or step) with its claim
+shifted by one (`l2 == l3 + 1`, `ROTR(..., h2 + 1, ...)`), so it follows
+`src/lib.bats` when the lemma's statement is weakened; its `expect` names the
+function, the line and patsopt's full error. A copy of the lemma's own body
+under a shifted statement does not follow the source, and when its claim is
+true (the lemma's own statement) it is rejected by its own body and tests
+nothing about the lemma, so the fixtures this ticket added are calls, and
+the fixtures of a lemma never repeat one claim. Copies remain, unchanged by
+arith#39, for public lemmas and steps that the ticket's list does not name:
+`and_bound`, `or_bound`, `rotr_add`, `shr_add`, `rotr_functional`,
+`rotr_digits_4`, `shr_digits_1`, `_2`, `_4` and `_8`, `shr_by_16`,
+`shr_step_1`, `_2`, `_4` and `_8`, and `word_byte_functional`
+(`and-bound-off-by-one`, `or-bound-off-by-one`, `rotr-add-body-sum-plus-one`,
+`shr-add-sum-plus-one`, `rotr-functional-high-plus-one`,
+`rotr-digits-4-halves-not-scaled`, `shr-digits-*`, `shr-by-16-*`,
+`shr-step-*` and `word-byte-functional-plus-one`). All of these have a
+public call, so each is a copy not yet converted to a call; converting them
+is not part of arith#39. The private `_low`, `_high` and `_digit2` have no
+copy: they are checked through the public lemmas that use them
+(`add32-functional-*`, `rotr1-functional-*`, `shr1-functional-*`).
+`tests/static/accept/lemma-calls-use`
+is the control: each of these lemmas called with its true claim.
+`tests/static/mutation_check.py` of quire (`--ats-home` for the build) runs the same over every statement of
 `src/lib.bats`: 130 mutants, all rejected by gmp.
 Under int 129 of the 130 are rejected and the one it accepts is
 `_add32_low`'s `c == c2 + 1`: the carry of a sum in two ways is one, which

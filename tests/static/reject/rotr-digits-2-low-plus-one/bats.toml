@@ -1,6 +1,0 @@
-[package]
-name = "rotr-digits-2-low-plus-one"
-kind = "bin"
-
-[dependencies]
-"arith" = ""

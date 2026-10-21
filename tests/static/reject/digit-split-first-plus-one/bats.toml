@@ -1,6 +1,0 @@
-[package]
-name = "digit-split-first-plus-one"
-kind = "bin"
-
-[dependencies]
-"arith" = ""

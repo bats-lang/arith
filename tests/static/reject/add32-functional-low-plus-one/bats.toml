@@ -1,0 +1,6 @@
+[package]
+name = "add32-functional-low-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
