@@ -1,0 +1,6 @@
+[package]
+name = "shr-functional-call-low-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

@@ -1,0 +1,3 @@
+function claim
+line 6
+unsolved constraint: C3NSTRprop(C3TKmain(); S2Eeqeq(S2Eapp(S2Ecst(add_int_int); S2Evar(a(_)), S2Eapp(S2Ecst(mul_int_int); S2Eintinf(32768), S2Evar(t(_)))); S2Eapp(S2Ecst(add_int_int); S2Eapp(S2Ecst(add_int_int); S2Evar(a(_)), S2Eapp(S2Ecst(mul_int_int); S2Eintinf(32768), S2Evar(t(_)))), S2Eintinf(1))))

@@ -1,5 +1,5 @@
 [package]
-name = "add32-low-half-carry-plus-one"
+name = "lemma-calls-use"
 kind = "bin"
 
 [dependencies]

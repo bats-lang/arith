@@ -1,0 +1,6 @@
+[package]
+name = "rotr-step-16-call-halves-not-swapped"
+kind = "bin"
+
+[dependencies]
+"arith" = ""

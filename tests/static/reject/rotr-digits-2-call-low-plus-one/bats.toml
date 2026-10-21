@@ -1,5 +1,5 @@
 [package]
-name = "digit-split-first-plus-one"
+name = "rotr-digits-2-call-low-plus-one"
 kind = "bin"
 
 [dependencies]

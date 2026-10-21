@@ -1,0 +1,6 @@
+[package]
+name = "rotr-step-2-call-high-plus-one"
+kind = "bin"
+
+[dependencies]
+"arith" = ""
