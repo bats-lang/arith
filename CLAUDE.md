@@ -211,10 +211,21 @@ shifted by one (`l2 == l3 + 1`, `ROTR(..., h2 + 1, ...)`), so it follows
 function, the line and patsopt's full error. A copy of the lemma's own body
 under a shifted statement does not follow the source, and when its claim is
 true (the lemma's own statement) it is rejected by its own body and tests
-nothing about the lemma, so a copy is kept only where the lemma has no
-public call (`shr_digits_*`, `rotr_digits_4`, the private `_low`, `_high` and
-`_digit2` are reached through the public lemmas that use them), and
-the fixtures of a lemma never repeat one claim. `tests/static/accept/lemma-calls-use`
+nothing about the lemma, so the fixtures this ticket added are calls, and
+the fixtures of a lemma never repeat one claim. Copies remain, unchanged by
+arith#39, for public lemmas and steps that the ticket's list does not name:
+`and_bound`, `or_bound`, `rotr_add`, `shr_add`, `rotr_functional`,
+`rotr_digits_4`, `shr_digits_1`, `_2`, `_4` and `_8`, `shr_by_16`,
+`shr_step_1`, `_2`, `_4` and `_8`, and `word_byte_functional`
+(`and-bound-off-by-one`, `or-bound-off-by-one`, `rotr-add-body-sum-plus-one`,
+`shr-add-sum-plus-one`, `rotr-functional-high-plus-one`,
+`rotr-digits-4-halves-not-scaled`, `shr-digits-*`, `shr-by-16-*`,
+`shr-step-*` and `word-byte-functional-plus-one`). All of these have a
+public call, so each is a copy not yet converted to a call; converting them
+is not part of arith#39. The private `_low`, `_high` and `_digit2` have no
+copy: they are checked through the public lemmas that use them
+(`add32-functional-*`, `rotr1-functional-*`, `shr1-functional-*`).
+`tests/static/accept/lemma-calls-use`
 is the control: each of these lemmas called with its true claim.
 `tests/static/mutation_check.py` of quire (`--ats-home` for the build) runs the same over every statement of
 `src/lib.bats`: 130 mutants, all rejected by gmp.
