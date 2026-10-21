@@ -1,6 +1,0 @@
-[package]
-name = "rotr-step-2-halves-not-crossed"
-kind = "bin"
-
-[dependencies]
-"arith" = ""

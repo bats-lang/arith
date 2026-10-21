@@ -1,6 +1,0 @@
-[package]
-name = "shr-functional-low-plus-one"
-kind = "bin"
-
-[dependencies]
-"arith" = ""
