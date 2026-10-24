@@ -2,5 +2,4 @@ build/
 docs/
 dist/
 bats_modules/
-bats.lock
 __pycache__/
